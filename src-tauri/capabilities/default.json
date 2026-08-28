@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The main window. Nothing beyond core is granted: every privileged action goes through our own commands, which validate on the Rust side.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

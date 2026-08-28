@@ -1,0 +1,17 @@
+[package]
+name = "mino-core"
+description = "Platform-independent tweak engine: planning, journalling, rollback, packs."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+# No `windows` dependency on purpose. This crate must compile and be testable
+# anywhere; everything that actually touches the OS goes through the traits in
+# `provider.rs` and is implemented in `mino-win`.
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }

@@ -1,0 +1,24 @@
+[package]
+name = "mino-win-style"
+description = "Change how Windows 11 looks — reversibly."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+# The binary is a thin shell over this library so the commands can be tested
+# without starting a window.
+[lib]
+name = "mino_win_style_lib"
+crate-type = ["lib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+mino-core = { workspace = true }
+mino-win = { workspace = true }
+tauri = { version = "2", features = [] }
+serde = { workspace = true }
+serde_json = { workspace = true }

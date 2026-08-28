@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "id": "com.mino.midnight-cairo",
+  "name": {
+    "en": "Midnight Cairo",
+    "ar": "قاهرة منتصف الليل"
+  },
+  "author": "mina",
+  "description": {
+    "en": "Dark, left-aligned, quiet: no widgets, no recommendations, extensions visible.",
+    "ar": "داكن، بمحاذاة اليسار، وهادئ: بلا أدوات ولا توصيات، مع إظهار الامتدادات."
+  },
+  "requires": {
+    "min_build": 22621,
+    "max_build": null
+  },
+  "settings": {
+    "appearance.dark_mode": true,
+    "appearance.accent_color": "#0F62C0",
+    "appearance.transparency": true,
+    "appearance.accent_on_titlebars": true,
+    "taskbar.alignment": "left",
+    "taskbar.widgets": false,
+    "taskbar.search": "icon",
+    "taskbar.seconds_in_clock": true,
+    "start.layout": "more_pins",
+    "start.recommended_files": false,
+    "explorer.show_file_extensions": true,
+    "explorer.launch_to": "this_pc"
+  }
+}
