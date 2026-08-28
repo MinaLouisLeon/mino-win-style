@@ -106,7 +106,7 @@ mod tests {
         );
         assert_eq!(
             pack.settings["taskbar.alignment"],
-            Value::Choice("left".into())
+            Value::Str("left".into())
         );
     }
 

@@ -75,6 +75,15 @@ export function TweakRow({ state, pending, onChange }: Props) {
           </div>
         )}
 
+        {/* No file picker yet: choosing a wallpaper by hand needs the dialog
+            plugin. Looks set this, and the current file is shown so the row is
+            still honest about what it holds. */}
+        {state.kind.kind === "path" && (
+          <span className="path" dir="ltr" title={typeof value === "string" ? value : ""}>
+            {typeof value === "string" && value ? value.split("\\").pop() : "—"}
+          </span>
+        )}
+
         {state.kind.kind === "choice" && (
           <select
             aria-label={text.name(state.id)}

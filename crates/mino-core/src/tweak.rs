@@ -9,14 +9,16 @@ use crate::value::{Value, ValueKind};
 #[serde(rename_all = "snake_case")]
 pub enum Category {
     Appearance,
+    Desktop,
     Taskbar,
     Start,
     Explorer,
 }
 
 impl Category {
-    pub const ALL: [Category; 4] = [
+    pub const ALL: [Category; 5] = [
         Category::Appearance,
+        Category::Desktop,
         Category::Taskbar,
         Category::Start,
         Category::Explorer,
@@ -25,6 +27,7 @@ impl Category {
     pub fn id(self) -> &'static str {
         match self {
             Category::Appearance => "appearance",
+            Category::Desktop => "desktop",
             Category::Taskbar => "taskbar",
             Category::Start => "start",
             Category::Explorer => "explorer",
@@ -67,6 +70,8 @@ pub enum Refresh {
     /// `SHChangeNotify(SHCNE_ASSOCCHANGED)` — shell icons and context menus.
     AssocChanged,
     Cursors,
+    /// Repaint the desktop from whatever `Control Panel\Desktop` now says.
+    Wallpaper,
     /// Explorer must be restarted. Always confirmed by the user first.
     RestartShell,
     /// Nothing we can do from here; the user must sign out and back in.
@@ -81,6 +86,7 @@ impl Refresh {
             Refresh::Broadcast(_) => 1,
             Refresh::AssocChanged => 2,
             Refresh::Cursors => 2,
+            Refresh::Wallpaper => 2,
             Refresh::RestartShell => 3,
             Refresh::SignOut => 4,
         }

@@ -4,6 +4,7 @@ import { PlanDialog } from "./components/PlanDialog";
 import { Home } from "./routes/Home";
 import { Category } from "./routes/Category";
 import { History } from "./routes/History";
+import { Looks } from "./routes/Looks";
 import { useI18n } from "./i18n";
 import {
   api,
@@ -11,14 +12,15 @@ import {
   type Category as Cat,
   type JournalEntry,
   type OsBuild,
+  type PackSummary,
   type Plan,
   type TweakState,
   type Value,
 } from "./lib/api";
 
-type View = "home" | Cat | "history";
+type View = "home" | "looks" | Cat | "history";
 
-const CATEGORIES: Cat[] = ["appearance", "taskbar", "start", "explorer"];
+const CATEGORIES: Cat[] = ["appearance", "desktop", "taskbar", "start", "explorer"];
 
 export default function App() {
   const { t, lang, setLang } = useI18n();
@@ -28,6 +30,9 @@ export default function App() {
   const [tweaks, setTweaks] = useState<TweakState[]>([]);
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [journalDir, setJournalDir] = useState("");
+  const [packs, setPacks] = useState<PackSummary[]>([]);
+  /** Set while a Look is waiting in the confirmation dialog. */
+  const [pendingPack, setPendingPack] = useState<string | null>(null);
 
   const [pending, setPending] = useState<Record<string, Value>>({});
   const [plan, setPlan] = useState<Plan | null>(null);
@@ -37,16 +42,18 @@ export default function App() {
   const [message, setMessage] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    const [osInfo, list, history, dir] = await Promise.all([
+    const [osInfo, list, history, dir, looks] = await Promise.all([
       api.osInfo(),
       api.listTweaks(),
       api.history(),
       api.journalDir(),
+      api.listPacks(),
     ]);
     setOs(osInfo);
     setTweaks(list);
     setEntries(history);
     setJournalDir(dir);
+    setPacks(looks);
   }, []);
 
   useEffect(() => {
@@ -83,8 +90,20 @@ export default function App() {
 
   const review = async () => {
     try {
+      setPendingPack(null);
       setPlan(await api.planChanges(label(), realPending));
     } catch (err) {
+      setMessage(String(err));
+    }
+  };
+
+  /** A Look goes to the same dialog; only the source of the plan differs. */
+  const reviewPack = async (pack: PackSummary) => {
+    try {
+      setPendingPack(pack.dir);
+      setPlan(await api.planPack(pack.dir));
+    } catch (err) {
+      setPendingPack(null);
       setMessage(String(err));
     }
   };
@@ -97,8 +116,11 @@ export default function App() {
   const apply = async () => {
     setBusy(true);
     try {
-      const report = await api.applyChanges(label(), realPending);
+      const report = pendingPack
+        ? await api.applyPack(pendingPack)
+        : await api.applyChanges(label(), realPending);
       setPending({});
+      setPendingPack(null);
       setPlan(null);
       await reload();
       if (report.shell_restart_pending) setRestartAsk(true);
@@ -149,6 +171,9 @@ export default function App() {
           <NavButton active={view === "home"} onClick={() => setView("home")}>
             {t("nav.home")}
           </NavButton>
+          <NavButton active={view === "looks"} onClick={() => setView("looks")}>
+            {t("nav.looks")}
+          </NavButton>
           {CATEGORIES.map((category) => (
             <NavButton
               key={category}
@@ -191,6 +216,8 @@ export default function App() {
           />
         )}
 
+        {view === "looks" && <Looks packs={packs} busy={busy} onApply={reviewPack} />}
+
         {CATEGORIES.includes(view as Cat) && (
           <Category
             category={view as Cat}
@@ -223,7 +250,15 @@ export default function App() {
         </div>
       )}
 
-      <PlanDialog plan={plan} busy={busy} onApply={apply} onCancel={() => setPlan(null)} />
+      <PlanDialog
+        plan={plan}
+        busy={busy}
+        onApply={apply}
+        onCancel={() => {
+          setPlan(null);
+          setPendingPack(null);
+        }}
+      />
 
       {restartAsk && (
         <Ask

@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use serde::Serialize;
@@ -6,10 +7,11 @@ use serde::Serialize;
 use crate::error::{Error, Result};
 use crate::journal::{Journal, JournalEntry, Status};
 use crate::os::OsBuild;
+use crate::profile::PackManifest;
 use crate::provider::{RegistryProvider, ShellRefresher};
 use crate::tweak::{Change, Privilege, Refresh, Tier, Tweak, TweakInfo, TweakState};
 use crate::tweaks::TweakRegistry;
-use crate::value::Value;
+use crate::value::{Value, ValueKind};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PlanItem {
@@ -380,6 +382,7 @@ impl Engine {
         let mut areas: BTreeSet<&'static str> = BTreeSet::new();
         let mut assoc = false;
         let mut cursors = false;
+        let mut wallpaper = false;
 
         for refresh in refreshes {
             match refresh {
@@ -388,6 +391,7 @@ impl Engine {
                 }
                 Refresh::AssocChanged => assoc = true,
                 Refresh::Cursors => cursors = true,
+                Refresh::Wallpaper => wallpaper = true,
                 // Handled by the caller: both need the user to agree first.
                 Refresh::RestartShell | Refresh::SignOut | Refresh::None => {}
             }
@@ -402,8 +406,75 @@ impl Engine {
         if cursors {
             self.shell.refresh_cursors()?;
         }
+        if wallpaper {
+            // Read it back rather than trusting the plan: whatever is in the
+            // registry now is what the desktop should be painted with, even if
+            // some other change in this batch touched it too.
+            if let Value::Str(path) = self.read("desktop.wallpaper")? {
+                self.shell.apply_wallpaper(&path)?;
+            }
+        }
         Ok(())
     }
+
+    /// Turns a pack manifest into settings this engine can plan.
+    ///
+    /// Packs name their assets relatively (`assets/wallpaper.png`) so they stay
+    /// movable; anything the OS has to open needs an absolute path. Only values
+    /// belonging to a [`ValueKind::Path`] tweak are rewritten — a taskbar
+    /// alignment of `"left"` is not a filename and must not be treated as one.
+    pub fn resolve_pack(&self, manifest: &PackManifest, base: &Path) -> BTreeMap<String, Value> {
+        let mut settings = BTreeMap::new();
+        for (id, value) in &manifest.settings {
+            let resolved = match (self.tweaks.get(id).map(|t| t.value_kind()), value) {
+                (Some(ValueKind::Path { .. }), Value::Str(raw)) if !raw.is_empty() => {
+                    Value::Str(resolve_asset(base, raw))
+                }
+                _ => value.clone(),
+            };
+            settings.insert(id.clone(), resolved);
+        }
+        settings
+    }
+}
+
+/// Joins a pack-relative asset onto the pack's folder.
+///
+/// Walks the components rather than joining the string whole: manifests are
+/// written with forward slashes so they read the same everywhere, and a plain
+/// join would leave `C:\packs\macos\assets/wallpaper.png` — which Windows
+/// accepts but which looks like a mistake everywhere it is displayed.
+fn resolve_asset(base: &Path, raw: &str) -> String {
+    let path = Path::new(raw);
+    if path.is_absolute() {
+        return path.to_string_lossy().into_owned();
+    }
+    // Absolute, always: the result goes into the registry, where a path relative
+    // to whatever directory this process happened to be started from is a bug
+    // waiting for the next sign-in.
+    let rooted = if base.is_absolute() {
+        base.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .unwrap_or_else(|_| PathBuf::from("."))
+            .join(base)
+    };
+
+    // Drop the `.` components a relative base leaves behind, so the path that
+    // lands in the registry is the one a person would have typed.
+    let mut full = PathBuf::new();
+    for part in rooted.components() {
+        if part != std::path::Component::CurDir {
+            full.push(part.as_os_str());
+        }
+    }
+    for part in raw
+        .split(['/', '\\'])
+        .filter(|p| !p.is_empty() && *p != ".")
+    {
+        full.push(part);
+    }
+    full.to_string_lossy().into_owned()
 }
 
 /// The one function in the codebase that changes the machine.

@@ -137,9 +137,16 @@ mod windows_main {
                         reason: format!("this pack does not cover build {}", os.build),
                     });
                 }
+                // Assets are named relative to the manifest so a pack can be
+                // moved or copied; Windows needs the absolute path.
+                let base = manifest
+                    .parent()
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|| PathBuf::from("."));
+                let settings = engine.resolve_pack(&pack, &base);
                 let plan = engine.plan(
                     format!("Applied pack: {}", pack.display_name("en")),
-                    &pack.settings,
+                    &settings,
                 )?;
                 finish(&engine, plan, cli.dry_run)?;
             }
@@ -260,6 +267,6 @@ mod windows_main {
                 return Value::Color(color);
             }
         }
-        Value::Choice(text.trim().to_string())
+        Value::Str(text.trim().to_string())
     }
 }

@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 use mino_core::{ApplyReport, JournalEntry, OsBuild, Plan, TweakState, Value};
 use tauri::State;
 
+use crate::packs::PackSummary;
 use crate::state::AppState;
 
 /// Commands return `Result<T, String>`: the UI shows the message, so it has to
@@ -73,4 +74,34 @@ pub fn restart_explorer(state: State<'_, AppState>) -> Answer<()> {
 #[tauri::command]
 pub fn journal_dir(state: State<'_, AppState>) -> String {
     state.engine.journal().dir().display().to_string()
+}
+
+// ---------------------------------------------------------------------------
+// Looks (packs)
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn list_packs(app: tauri::AppHandle, state: State<'_, AppState>) -> Vec<PackSummary> {
+    crate::packs::find_all(&app, &state.engine)
+}
+
+/// The same plan/confirm/apply path as any other change — a Look is a batch of
+/// ordinary settings, not a privileged shortcut past the confirmation screen.
+#[tauri::command]
+pub fn plan_pack(state: State<'_, AppState>, dir: String) -> Answer<Plan> {
+    let (manifest, settings) = crate::packs::settings_for(&state.engine, &dir).map_err(fail)?;
+    state
+        .engine
+        .plan(format!("Look: {}", manifest.display_name("en")), &settings)
+        .map_err(fail)
+}
+
+#[tauri::command]
+pub fn apply_pack(state: State<'_, AppState>, dir: String) -> Answer<ApplyReport> {
+    let (manifest, settings) = crate::packs::settings_for(&state.engine, &dir).map_err(fail)?;
+    let plan = state
+        .engine
+        .plan(format!("Look: {}", manifest.display_name("en")), &settings)
+        .map_err(fail)?;
+    state.engine.apply(&plan).map_err(fail)
 }

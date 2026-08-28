@@ -124,6 +124,10 @@ pub trait ShellRefresher: Send + Sync {
     fn broadcast_setting_change(&self, area: &str) -> Result<()>;
     fn notify_assoc_changed(&self) -> Result<()>;
     fn refresh_cursors(&self) -> Result<()>;
+    /// Writing `Control Panel\Desktop\WallPaper` records the choice; the desktop
+    /// only repaints once this is called. The engine reads the path back out of
+    /// the registry after applying, so the two can never disagree.
+    fn apply_wallpaper(&self, path: &str) -> Result<()>;
     fn restart_explorer(&self) -> Result<()>;
 }
 
@@ -268,6 +272,9 @@ impl ShellRefresher for NoopRefresher {
     }
     fn refresh_cursors(&self) -> Result<()> {
         self.record("cursors")
+    }
+    fn apply_wallpaper(&self, path: &str) -> Result<()> {
+        self.record(&format!("wallpaper:{path}"))
     }
     fn restart_explorer(&self) -> Result<()> {
         self.record("restart_explorer")

@@ -46,7 +46,23 @@ const defs: Def[] = [
     support: { level: "partial", note: { key: "dark_mode_only", en: "Windows only shows this while dark mode is on." } },
   },
 
+  {
+    id: "desktop.wallpaper",
+    category: "desktop",
+    tier: "a",
+    kind: { kind: "path", extensions: ["jpg", "jpeg", "png", "bmp", "dib"] },
+    value: "C:\\Windows\\Web\\Wallpaper\\Windows\\img0.jpg",
+  },
+  {
+    id: "desktop.wallpaper_fit",
+    category: "desktop",
+    tier: "a",
+    kind: choice("fill", "fit", "stretch", "center", "span"),
+    value: "fill",
+  },
+
   { id: "taskbar.alignment", category: "taskbar", tier: "a", kind: choice("left", "center"), value: "center" },
+  { id: "taskbar.auto_hide", category: "taskbar", tier: "b", kind: bool(), value: false, restartShell: true },
   { id: "taskbar.widgets", category: "taskbar", tier: "b", kind: bool(), value: true },
   { id: "taskbar.task_view", category: "taskbar", tier: "a", kind: bool(), value: true },
   {
@@ -250,6 +266,51 @@ export const mockApi: Api = {
   restartExplorer: () => wait(undefined),
 
   journalDir: () => wait("C:\\Users\\you\\AppData\\Local\\mino-win-style\\journal"),
+
+  listPacks: () =>
+    wait([
+      {
+        id: "com.mino.macos",
+        dir: "C:\\packs\\macos",
+        name: { en: "macOS", ar: "ماك أو إس" },
+        description: {
+          en: "A quiet, dark desktop in the spirit of macOS.",
+          ar: "سطح مكتب داكن وهادئ بروح ماك أو إس.",
+        },
+        author: "mino-win-style",
+        settings: 18,
+        applicable: true,
+      },
+      {
+        id: "com.mino.midnight-cairo",
+        dir: "C:\\packs\\midnight-cairo",
+        name: { en: "Midnight Cairo", ar: "قاهرة منتصف الليل" },
+        description: {
+          en: "Dark, left-aligned, quiet.",
+          ar: "داكن، بمحاذاة اليسار، وهادئ.",
+        },
+        author: "mina",
+        settings: 12,
+        applicable: true,
+      },
+    ]),
+
+  planPack: (dir) =>
+    wait(
+      buildPlan(`Look: ${dir}`, {
+        "appearance.dark_mode": true,
+        "appearance.accent_color": "#0A84FF",
+        "taskbar.auto_hide": true,
+        "taskbar.search": "hidden",
+      }),
+    ),
+
+  applyPack: (dir) => mockApi.applyChanges(`Look: ${dir}`, {
+    "appearance.dark_mode": true,
+    "appearance.accent_color": "#0A84FF",
+    "taskbar.auto_hide": true,
+    "taskbar.search": "hidden",
+  }),
 };
 
 /** The mock keeps one change per tweak, so position is enough to pair them up. */

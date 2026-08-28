@@ -337,6 +337,72 @@ code {
   color: #fff;
 }
 
+/* ---------------- looks ---------------- */
+
+.looks {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.look {
+  display: grid;
+  grid-template-columns: 96px 1fr auto;
+  gap: 18px;
+  align-items: center;
+  background: var(--layer);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+}
+
+/* A glimpse of the wallpaper, so a Look is recognisable before it is applied. */
+.look__swatch {
+  width: 96px;
+  height: 60px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line-2);
+  background: linear-gradient(150deg, #0e122e 0%, #3d2a6b 55%, #48225c 100%);
+}
+
+.look__swatch--midnight-cairo {
+  background: linear-gradient(150deg, #05070f 0%, #0f2f5c 60%, #0f62c0 100%);
+}
+
+.look__body h2 {
+  margin: 0 0 2px;
+}
+
+.look__body p {
+  margin: 0;
+  font-size: 13.5px;
+  max-width: 62ch;
+}
+
+.look__meta {
+  margin-top: 4px !important;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.path {
+  font-family: "Cascadia Mono", Consolas, ui-monospace, monospace;
+  font-size: 12.5px;
+  color: var(--muted);
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+@media (max-width: 720px) {
+  .look {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ---------------- controls ---------------- */
 
 .switch {

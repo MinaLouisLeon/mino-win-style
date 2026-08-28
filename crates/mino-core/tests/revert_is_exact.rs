@@ -65,10 +65,7 @@ fn wanted() -> BTreeMap<String, Value> {
             "appearance.accent_color".to_string(),
             Value::Color(Color::new(0x0F, 0x62, 0xC0)),
         ),
-        (
-            "taskbar.alignment".to_string(),
-            Value::Choice("left".into()),
-        ),
+        ("taskbar.alignment".to_string(), Value::Str("left".into())),
         ("taskbar.widgets".to_string(), Value::Bool(false)),
         (
             "explorer.show_file_extensions".to_string(),
@@ -123,7 +120,7 @@ fn apply_then_revert_all_restores_the_machine() {
     );
     assert_eq!(
         engine.read("taskbar.alignment").unwrap(),
-        Value::Choice("left".into())
+        Value::Str("left".into())
     );
 
     engine.revert_all().unwrap();
@@ -170,10 +167,7 @@ fn unsupported_and_unknown_settings_are_reported_not_applied() {
     );
 
     let wanted = BTreeMap::from([
-        (
-            "start.layout".to_string(),
-            Value::Choice("more_pins".into()),
-        ),
+        ("start.layout".to_string(), Value::Str("more_pins".into())),
         ("taskbar.does_not_exist".to_string(), Value::Bool(true)),
     ]);
 

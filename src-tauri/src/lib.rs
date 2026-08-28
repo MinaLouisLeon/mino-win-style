@@ -1,4 +1,5 @@
 pub mod commands;
+pub mod packs;
 pub mod state;
 
 use state::AppState;
@@ -32,6 +33,9 @@ pub fn run() {
             commands::revert_all,
             commands::restart_explorer,
             commands::journal_dir,
+            commands::list_packs,
+            commands::plan_pack,
+            commands::apply_pack,
         ])
         .run(tauri::generate_context!())
         .expect("failed to start the Mino Win Style window");

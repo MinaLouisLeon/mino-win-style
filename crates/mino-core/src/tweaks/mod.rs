@@ -5,6 +5,7 @@
 //! write a type that implements [`Tweak`] and keep the key paths inside it.
 
 pub mod appearance;
+pub mod desktop;
 pub mod explorer;
 pub mod helpers;
 pub mod start;
@@ -20,6 +21,7 @@ impl TweakRegistry {
     pub fn builtin() -> Self {
         let mut tweaks: Vec<Box<dyn Tweak>> = Vec::new();
         tweaks.extend(appearance::all());
+        tweaks.extend(desktop::all());
         tweaks.extend(taskbar::all());
         tweaks.extend(start::all());
         tweaks.extend(explorer::all());

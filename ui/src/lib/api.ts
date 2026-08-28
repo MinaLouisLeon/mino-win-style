@@ -9,7 +9,7 @@
 
 import { mockApi } from "./mock";
 
-export type Category = "appearance" | "taskbar" | "start" | "explorer";
+export type Category = "appearance" | "desktop" | "taskbar" | "start" | "explorer";
 export type Tier = "a" | "b" | "c";
 export type Privilege = "user" | "elevated";
 
@@ -19,7 +19,8 @@ export type Value = boolean | string;
 export type ValueKind =
   | { kind: "bool" }
   | { kind: "color" }
-  | { kind: "choice"; choices: string[] };
+  | { kind: "choice"; choices: string[] }
+  | { kind: "path"; extensions: string[] };
 
 /**
  * `note.key` is a translation key (`support.note.<key>`); `note.en` is the
@@ -101,6 +102,17 @@ export interface ApplyReport {
   sign_out_pending: boolean;
 }
 
+/** A Look: a folder with a manifest and its assets. */
+export interface PackSummary {
+  id: string;
+  dir: string;
+  name: Record<string, string>;
+  description: Record<string, string>;
+  author: string | null;
+  settings: number;
+  applicable: boolean;
+}
+
 export interface OsBuild {
   build: number;
   ubr: number;
@@ -118,6 +130,9 @@ export interface Api {
   revertAll(): Promise<ApplyReport[]>;
   restartExplorer(): Promise<void>;
   journalDir(): Promise<string>;
+  listPacks(): Promise<PackSummary[]>;
+  planPack(dir: string): Promise<Plan>;
+  applyPack(dir: string): Promise<ApplyReport>;
 }
 
 /**
@@ -144,6 +159,9 @@ function tauriApi(): Api {
     revertAll: () => invoke<ApplyReport[]>("revert_all"),
     restartExplorer: () => invoke<void>("restart_explorer"),
     journalDir: () => invoke<string>("journal_dir"),
+    listPacks: () => invoke<PackSummary[]>("list_packs"),
+    planPack: (dir) => invoke<Plan>("plan_pack", { dir }),
+    applyPack: (dir) => invoke<ApplyReport>("apply_pack", { dir }),
   };
 }
 

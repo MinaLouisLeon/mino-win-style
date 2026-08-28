@@ -4,6 +4,7 @@
 //! can, notify the shell if we must, restart Explorer only when the user has
 //! said yes. Nothing here ever kills Explorer on its own initiative.
 
+use std::ffi::c_void;
 use std::os::windows::process::CommandExt;
 use std::process::Command;
 
@@ -11,7 +12,7 @@ use windows::Win32::Foundation::{LPARAM, WPARAM};
 use windows::Win32::UI::Shell::{SHChangeNotify, SHCNE_ASSOCCHANGED, SHCNF_IDLIST};
 use windows::Win32::UI::WindowsAndMessaging::{
     SendMessageTimeoutW, SystemParametersInfoW, HWND_BROADCAST, SMTO_ABORTIFHUNG, SPIF_SENDCHANGE,
-    SPI_SETCURSORS, WM_SETTINGCHANGE,
+    SPIF_UPDATEINIFILE, SPI_SETCURSORS, SPI_SETDESKWALLPAPER, WM_SETTINGCHANGE,
 };
 
 use mino_core::error::{Error, Result};
@@ -67,6 +68,23 @@ impl ShellRefresher for WindowsShell {
         unsafe {
             SystemParametersInfoW(SPI_SETCURSORS, 0, None, SPIF_SENDCHANGE)
                 .map_err(|e| Error::shell(format!("reloading cursors: {e}")))
+        }
+    }
+
+    /// `SPI_SETDESKWALLPAPER` is what actually repaints the desktop. The flags
+    /// matter: `UPDATEINIFILE` makes it stick across a sign-out, `SENDCHANGE`
+    /// tells everything else it happened.
+    fn apply_wallpaper(&self, path: &str) -> Result<()> {
+        // Must outlive the call: Windows reads the string through this pointer.
+        let mut wide: Vec<u16> = path.encode_utf16().chain(std::iter::once(0)).collect();
+        unsafe {
+            SystemParametersInfoW(
+                SPI_SETDESKWALLPAPER,
+                0,
+                Some(wide.as_mut_ptr() as *mut c_void),
+                SPIF_UPDATEINIFILE | SPIF_SENDCHANGE,
+            )
+            .map_err(|e| Error::shell(format!("setting the wallpaper to `{path}`: {e}")))
         }
     }
 

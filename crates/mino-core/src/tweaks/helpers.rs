@@ -137,12 +137,18 @@ impl Tweak for BoolTweak {
 
     fn plan(&self, reg: &dyn RegistryProvider, want: &Value) -> Result<ChangeSet> {
         let want = want.as_bool(self.id)?;
+
+        // Compare what the user sees, not what the registry holds. An absent
+        // value already *means* the default, so writing that default changes
+        // nothing except the journal — and a confirmation screen listing
+        // "off -> off" teaches people to stop reading it.
+        if self.read(reg)? == Value::Bool(want) {
+            return Ok(ChangeSet::nothing(self.id));
+        }
+
         let loc = self.spec.loc();
         let from = reg.read(&loc)?;
         let to = RegValue::Dword(if want { self.on } else { self.off });
-        if from.as_ref() == Some(&to) {
-            return Ok(ChangeSet::nothing(self.id));
-        }
         Ok(ChangeSet {
             tweak: self.id.to_string(),
             changes: vec![Change::Value {
@@ -155,7 +161,19 @@ impl Tweak for BoolTweak {
     }
 }
 
-/// A DWORD mapped to a small set of named options.
+/// How Windows spells a number in the registry.
+///
+/// Most of `Explorer\Advanced` uses `REG_DWORD`, but the older
+/// `Control Panel\Desktop` values are `REG_SZ` holding digits — `WallpaperStyle`
+/// is `"10"`, not `10`. Reading accepts either; writing uses whichever the
+/// tweak declares, so we hand a value back in the shape Windows expects.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Stored {
+    Dword,
+    Sz,
+}
+
+/// A number mapped to a small set of named options.
 pub struct ChoiceTweak {
     pub id: &'static str,
     pub category: Category,
@@ -168,6 +186,7 @@ pub struct ChoiceTweak {
     pub builds: BuildRange,
     pub privilege: Privilege,
     pub note: Option<SupportNote>,
+    pub stored: Stored,
 }
 
 impl ChoiceTweak {
@@ -190,7 +209,14 @@ impl ChoiceTweak {
             builds: BuildRange::any(),
             privilege: Privilege::User,
             note: None,
+            stored: Stored::Dword,
         }
+    }
+
+    /// For the `Control Panel\Desktop` values, which keep their numbers as text.
+    pub const fn stored_as_text(mut self) -> Self {
+        self.stored = Stored::Sz;
+        self
     }
 
     pub const fn tier(mut self, tier: Tier) -> Self {
@@ -263,26 +289,43 @@ impl Tweak for ChoiceTweak {
 
     fn read(&self, reg: &dyn RegistryProvider) -> Result<Value> {
         let loc = self.spec.loc();
-        let choice = match reg.read(&loc)? {
-            None => self.default,
-            Some(RegValue::Dword(d)) => {
-                self.choice_for(d).ok_or_else(|| Error::UnexpectedState {
+        // Liberal in what we accept: a value we declare as text may already be a
+        // DWORD because some other tool wrote it that way, and vice versa.
+        let number = match reg.read(&loc)? {
+            None => return Ok(Value::Str(self.default.to_string())),
+            Some(RegValue::Dword(d)) => d,
+            Some(RegValue::Sz(text)) | Some(RegValue::ExpandSz(text)) => text
+                .trim()
+                .parse::<u32>()
+                .map_err(|_| Error::UnexpectedState {
                     loc: loc.to_string(),
-                    detail: format!("{d} is not one of the values this app knows"),
-                })?
-            }
+                    detail: format!("`{text}` is not a number"),
+                })?,
             Some(other) => {
                 return Err(Error::UnexpectedState {
                     loc: loc.to_string(),
-                    detail: format!("expected REG_DWORD, found {}", other.type_name()),
+                    detail: format!("expected a number, found {}", other.type_name()),
                 })
             }
         };
-        Ok(Value::Choice(choice.to_string()))
+
+        let choice = self
+            .choice_for(number)
+            .ok_or_else(|| Error::UnexpectedState {
+                loc: loc.to_string(),
+                detail: format!("{number} is not one of the values this app knows"),
+            })?;
+        Ok(Value::Str(choice.to_string()))
     }
 
     fn plan(&self, reg: &dyn RegistryProvider, want: &Value) -> Result<ChangeSet> {
         let choice = want.as_choice(self.id)?;
+
+        // As with BoolTweak: an absent value already means its default.
+        if self.read(reg)? == Value::Str(choice.to_string()) {
+            return Ok(ChangeSet::nothing(self.id));
+        }
+
         let number = self.number_for(choice).ok_or_else(|| Error::BadValue {
             tweak: self.id.to_string(),
             got: format!("\"{choice}\""),
@@ -296,7 +339,10 @@ impl Tweak for ChoiceTweak {
 
         let loc = self.spec.loc();
         let from = reg.read(&loc)?;
-        let to = RegValue::Dword(number);
+        let to = match self.stored {
+            Stored::Dword => RegValue::Dword(number),
+            Stored::Sz => RegValue::Sz(number.to_string()),
+        };
         if from.as_ref() == Some(&to) {
             return Ok(ChangeSet::nothing(self.id));
         }

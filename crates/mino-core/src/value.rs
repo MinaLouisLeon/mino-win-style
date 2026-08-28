@@ -16,8 +16,10 @@ use crate::error::{Error, Result};
 pub enum Value {
     Bool(bool),
     Color(Color),
-    /// One of the ids listed in the tweak's `ValueKind::Choice`.
-    Choice(String),
+    /// Any string. What it *means* — one of a tweak's choices, or a file path —
+    /// comes from that tweak's [`ValueKind`], not from the wire, because on the
+    /// wire the two are indistinguishable.
+    Str(String),
 }
 
 impl Value {
@@ -45,7 +47,7 @@ impl Value {
 
     pub fn as_choice(&self, tweak: &str) -> Result<&str> {
         match self {
-            Value::Choice(c) => Ok(c.as_str()),
+            Value::Str(c) => Ok(c.as_str()),
             other => Err(Error::BadValue {
                 tweak: tweak.to_string(),
                 got: other.describe(),
@@ -54,11 +56,22 @@ impl Value {
         }
     }
 
+    pub fn as_path(&self, tweak: &str) -> Result<&str> {
+        match self {
+            Value::Str(p) => Ok(p.as_str()),
+            other => Err(Error::BadValue {
+                tweak: tweak.to_string(),
+                got: other.describe(),
+                expected: "a file path".into(),
+            }),
+        }
+    }
+
     pub fn describe(&self) -> String {
         match self {
             Value::Bool(b) => b.to_string(),
             Value::Color(c) => c.to_hex(),
-            Value::Choice(c) => format!("\"{c}\""),
+            Value::Str(c) => format!("\"{c}\""),
         }
     }
 }
@@ -73,6 +86,11 @@ pub enum ValueKind {
     /// locale files, so Arabic and English wording never leaks into the core.
     Choice {
         choices: Vec<String>,
+    },
+    /// A file on disk. `extensions` is what a picker should offer; the tweak
+    /// validates whatever it is actually handed.
+    Path {
+        extensions: Vec<String>,
     },
 }
 

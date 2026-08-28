@@ -12,6 +12,24 @@ interface is HTML and TypeScript running in WebView2, hosted by Tauri 2.
 > *applied* to a real machine yet — that is what a VM is for. See
 > [What has and has not been verified](#what-has-and-has-not-been-verified).
 
+## Looks, and the ceiling above them
+
+A **Look** is a pack applied in one step: `packs/macos/` sets dark mode, a system
+blue accent, its own wallpaper, an auto-hiding taskbar and a Start menu with the
+recommendations turned off. It goes through the same confirmation screen as a
+single switch, and lands as one journal entry, so one Revert undoes all of it.
+
+What a Look **cannot** do is make Windows look like macOS, and it is worth being
+plain about why: this app changes settings Windows exposes, and Windows exposes
+no dock, no menu bar, and no way to restyle its own shell chrome. That is a
+ceiling in the approach, not a gap in the implementation.
+
+Getting past it means doing what Seelen UI does — not restyling the Windows
+shell but **drawing our own on top of it**: a dock, a menu bar and a launcher as
+borderless always-on-top windows of our own, with the native taskbar hidden.
+Tauri already does multi-window, so the foundation holds; it is a new layer
+(`mino-shell`), not a rewrite. It is not built yet.
+
 ## Why it is built this way
 
 - **Reversible by construction.** No change is applied before its previous value
