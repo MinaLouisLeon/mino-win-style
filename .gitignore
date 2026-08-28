@@ -23,3 +23,6 @@ Thumbs.db
 
 # Playwright MCP scratch output
 .playwright-mcp/
+
+# Build artifacts collected for hand-off
+dist/

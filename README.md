@@ -65,11 +65,17 @@ That is what release builds should use.
 Everything so far was built on the **GNU** toolchain instead, which works but
 needs two things to be known:
 
-- **`dlltool` is missing an assembler**, so any crate using `raw-dylib` import
-  libraries fails to compile. That is why `mino-core` has no `chrono` (it brings
-  in `windows-link`) and why `clap` is built without its `color` feature (it
-  brings in `windows-sys` via `anstream`). Both are improvements in their own
-  right; on MSVC neither restriction applies.
+- **The `dlltool` bundled with rustup's GNU toolchain has no assembler beside
+  it**, so any crate using `raw-dylib` import libraries fails to compile. Put a
+  complete MinGW `bin` on `PATH` — on this machine
+  `C:\nuwb-toolchain\mingw64\bin` — and it works.
+
+  Two dependencies were dropped before that was understood: `chrono` from
+  `mino-core` (it brings in `windows-link`) and `clap`'s `color` feature (it
+  brings in `windows-sys` via `anstream`). Neither is required to stay dropped —
+  but both should. Losing `chrono` is what makes `mino-core`'s "no OS
+  dependency" claim literally true, and a recovery CLI whose output gets piped
+  into a log is better off without colour codes.
 - **`windres` breaks on spaces in paths**, and this checkout lives under
   `C:\Users\Mina Louis\…`. Building `src-tauri` on GNU therefore needs a
   space-free target directory:
