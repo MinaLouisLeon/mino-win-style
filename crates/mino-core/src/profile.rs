@@ -81,7 +81,9 @@ mod tests {
     use super::*;
     use crate::value::Color;
 
-    const SAMPLE: &str = r#"{
+    // Doubled hashes: the sample contains `"#0F62C0"`, and `"#` would close a
+    // plain `r#"…"#` string.
+    const SAMPLE: &str = r##"{
       "schema": 1,
       "id": "com.mino.test",
       "name": { "en": "Test", "ar": "تجربة" },
@@ -91,16 +93,13 @@ mod tests {
         "appearance.accent_color": "#0F62C0",
         "taskbar.alignment": "left"
       }
-    }"#;
+    }"##;
 
     #[test]
     fn reads_natural_json() {
         let pack = PackManifest::from_json(SAMPLE).unwrap();
         assert_eq!(pack.display_name("ar"), "تجربة");
-        assert_eq!(
-            pack.settings["appearance.dark_mode"],
-            Value::Bool(true)
-        );
+        assert_eq!(pack.settings["appearance.dark_mode"], Value::Bool(true));
         assert_eq!(
             pack.settings["appearance.accent_color"],
             Value::Color(Color::new(0x0F, 0x62, 0xC0))

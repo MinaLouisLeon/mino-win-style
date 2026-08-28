@@ -39,7 +39,10 @@ pub fn all() -> Vec<Box<dyn Tweak>> {
                 RegSpec::hkcu(PERSONALIZE, "ColorPrevalence"),
                 Refresh::Broadcast("ImmersiveColorSet"),
             )
-            .note("Windows only shows this while dark mode is on."),
+            .note(
+                "dark_mode_only",
+                "Windows only shows this while dark mode is on.",
+            ),
         ),
     ]
 }
@@ -129,30 +132,43 @@ impl AccentColorTweak {
     const PALETTE: RegSpec = RegSpec::hkcu(ACCENT, "AccentPalette");
     const AUTO: RegSpec = RegSpec::hkcu(DESKTOP, "AutoColorization");
 
-    /// The eight-shade ramp Windows stores in `AccentPalette`, lightest first.
+    /// Lightness offsets for the seven accent shades, lightest first, with the
+    /// base at index 3.
     ///
-    /// VERIFY ON HARDWARE (M1, VM matrix): the layout below — eight 4-byte
-    /// entries of `R, G, B, 00` with the base accent at index 4 — matches what
-    /// Windows writes on the machines this was developed against, but it is not
-    /// a documented format. The compatibility test for this tweak is to set an
-    /// accent through Settings, dump the value, and diff it against this
-    /// function's output.
-    fn palette(base: Color) -> Vec<u8> {
-        const SHADES: [f32; 8] = [0.8, 0.6, 0.4, 0.2, 0.0, -0.2, -0.4, -0.6];
+    /// Fitted against what Windows 11 25H2 actually stores for its default blue
+    /// (`#0078D4`): the ramp there is `#99EBFF #4CC2FF #0091F8 #0078D4 #0067C0
+    /// #003E92 #001A68`, whose HSL lightnesses sit at these offsets from the
+    /// base. Microsoft also drifts the hue slightly across the ramp; we do not,
+    /// so our shades are close rather than identical. They are our own colours
+    /// for a colour the user chose, which is the part that matters.
+    const RAMP: [f32; 7] = [0.384, 0.233, 0.070, 0.0, -0.040, -0.130, -0.212];
+
+    /// Windows measures `StartColorMenu` at `#005A9E` for that same base — a
+    /// touch darker than Dark1 and lighter than Dark2.
+    const START_OFFSET: f32 = -0.106;
+
+    /// Eight 4-byte entries of `R, G, B, 00` (byte order verified against a live
+    /// machine). The last entry is *not* part of the ramp — on a default install
+    /// it holds an unrelated colour, `#F7630C` — so an existing one is carried
+    /// over untouched rather than overwritten with a guess.
+    fn palette(base: Color, existing: Option<&RegValue>) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(32);
-        for shade in SHADES {
-            let c = base.shade(shade);
+        for offset in Self::RAMP {
+            let c = base.lighten(offset);
             bytes.extend_from_slice(&[c.r, c.g, c.b, 0x00]);
+        }
+        match existing {
+            Some(RegValue::Binary(previous)) if previous.len() == 32 => {
+                bytes.extend_from_slice(&previous[28..32]);
+            }
+            _ => bytes.extend_from_slice(&[0xF7, 0x63, 0x0C, 0x00]),
         }
         bytes
     }
 
     /// `ColorizationColor` carries an alpha byte; Windows itself writes 0xC4.
     fn colorization(base: Color) -> u32 {
-        0xC400_0000
-            | (u32::from(base.r) << 16)
-            | (u32::from(base.g) << 8)
-            | u32::from(base.b)
+        0xC400_0000 | (u32::from(base.r) << 16) | (u32::from(base.g) << 8) | u32::from(base.b)
     }
 
     fn set(
@@ -209,7 +225,8 @@ impl Tweak for AccentColorTweak {
 
     fn plan(&self, reg: &dyn RegistryProvider, want: &Value) -> Result<ChangeSet> {
         let base = want.as_color(self.id())?;
-        let darker = base.shade(-0.2);
+        let darker = base.lighten(Self::START_OFFSET);
+        let existing_palette = reg.read(&Self::PALETTE.loc())?;
         let mut changes = Vec::new();
 
         Self::set(
@@ -246,7 +263,7 @@ impl Tweak for AccentColorTweak {
             reg,
             &mut changes,
             Self::PALETTE.loc(),
-            RegValue::Binary(Self::palette(base)),
+            RegValue::Binary(Self::palette(base, existing_palette.as_ref())),
         )?;
         // Without this, Windows recolours everything from the wallpaper again.
         Self::set(reg, &mut changes, Self::AUTO.loc(), RegValue::Dword(0))?;
@@ -275,13 +292,64 @@ mod tests {
     use crate::provider::MemoryRegistry;
 
     #[test]
-    fn palette_is_thirty_two_bytes_with_base_in_the_middle() {
+    fn palette_puts_the_base_at_index_three() {
         let base = Color::new(0x0F, 0x62, 0xC0);
-        let bytes = AccentColorTweak::palette(base);
+        let bytes = AccentColorTweak::palette(base, None);
         assert_eq!(bytes.len(), 32);
-        assert_eq!(&bytes[16..20], &[base.r, base.g, base.b, 0x00]);
-        // Lightest first, darkest last.
-        assert!(bytes[0] > bytes[28]);
+        assert_eq!(&bytes[12..16], &[base.r, base.g, base.b, 0x00]);
+    }
+
+    #[test]
+    fn palette_runs_light_to_dark() {
+        let bytes = AccentColorTweak::palette(Color::new(0x00, 0x78, 0xD4), None);
+        let lightness = |i: usize| {
+            Color::new(bytes[i * 4], bytes[i * 4 + 1], bytes[i * 4 + 2])
+                .to_hsl()
+                .2
+        };
+        for i in 0..6 {
+            assert!(
+                lightness(i) > lightness(i + 1),
+                "entry {i} is not lighter than {}",
+                i + 1
+            );
+        }
+    }
+
+    /// Our ramp should land near what Windows itself writes. Not identical —
+    /// Microsoft drifts the hue too — so this asserts "close", and would catch
+    /// the ramp being reversed, flattened or wrongly centred.
+    #[test]
+    fn palette_is_close_to_the_one_windows_writes() {
+        let windows_ramp = [
+            Color::new(0x99, 0xEB, 0xFF),
+            Color::new(0x4C, 0xC2, 0xFF),
+            Color::new(0x00, 0x91, 0xF8),
+            Color::new(0x00, 0x78, 0xD4),
+            Color::new(0x00, 0x67, 0xC0),
+            Color::new(0x00, 0x3E, 0x92),
+            Color::new(0x00, 0x1A, 0x68),
+        ];
+        let bytes = AccentColorTweak::palette(Color::new(0x00, 0x78, 0xD4), None);
+        for (i, expected) in windows_ramp.iter().enumerate() {
+            let got = Color::new(bytes[i * 4], bytes[i * 4 + 1], bytes[i * 4 + 2]);
+            let delta = (got.to_hsl().2 - expected.to_hsl().2).abs();
+            assert!(
+                delta < 0.02,
+                "entry {i}: {got} vs {expected} (ΔL {delta:.3})"
+            );
+        }
+    }
+
+    #[test]
+    fn the_eighth_palette_entry_is_preserved() {
+        let previous = RegValue::Binary({
+            let mut bytes = vec![0u8; 28];
+            bytes.extend_from_slice(&[0x11, 0x22, 0x33, 0x00]);
+            bytes
+        });
+        let bytes = AccentColorTweak::palette(Color::new(0x0F, 0x62, 0xC0), Some(&previous));
+        assert_eq!(&bytes[28..32], &[0x11, 0x22, 0x33, 0x00]);
     }
 
     #[test]
@@ -302,7 +370,10 @@ mod tests {
         let reg = MemoryRegistry::new();
         let want = Value::Color(Color::new(0x0F, 0x62, 0xC0));
         for change in AccentColorTweak.plan(&reg, &want).unwrap().changes {
-            if let Change::Value { loc, to: Some(v), .. } = change {
+            if let Change::Value {
+                loc, to: Some(v), ..
+            } = change
+            {
                 reg.seed(&loc, v);
             }
         }

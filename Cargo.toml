@@ -16,7 +16,6 @@ mino-win = { path = "crates/mino-win" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "1"
-chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std"] }
 
 # Pinned deliberately: every Win32 call in `mino-win` is written against this
 # version's signatures. Bumping it is a reviewed change, not a routine update.

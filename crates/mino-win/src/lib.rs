@@ -26,9 +26,12 @@ mod boot {
 
     use crate::{WindowsRegistry, WindowsShell};
 
+    /// What every entry point needs to build an engine.
+    pub type Platform = (Arc<dyn RegistryProvider>, Arc<dyn ShellRefresher>, OsBuild);
+
     /// The real providers plus the build we are running on. Every entry point —
     /// the app, the CLI — starts here so they cannot drift apart.
-    pub fn boot() -> Result<(Arc<dyn RegistryProvider>, Arc<dyn ShellRefresher>, OsBuild)> {
+    pub fn boot() -> Result<Platform> {
         let registry = Arc::new(WindowsRegistry::new());
         let os = crate::os::detect(registry.as_ref())?;
         let shell = Arc::new(WindowsShell::new());
@@ -37,4 +40,4 @@ mod boot {
 }
 
 #[cfg(windows)]
-pub use boot::boot;
+pub use boot::{boot, Platform};

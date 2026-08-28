@@ -1,0 +1,5 @@
+# pnpm refuses to run any dependency's install script unless it is listed here.
+# esbuild is the only one that needs one: it unpacks the platform binary Vite
+# builds with. Everything else stays blocked, which is the point of the setting.
+allowBuilds:
+  esbuild: true

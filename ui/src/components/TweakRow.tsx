@@ -9,7 +9,7 @@ interface Props {
 }
 
 export function TweakRow({ state, pending, onChange }: Props) {
-  const { t } = useI18n();
+  const { t, tOr } = useI18n();
   const text = useTweakText();
 
   const unsupported = state.support.level === "unsupported";
@@ -32,10 +32,17 @@ export function TweakRow({ state, pending, onChange }: Props) {
           {changed && <span className="badge badge--accent">•</span>}
         </div>
         {desc && <p className="row__desc">{desc}</p>}
-        {state.support.level === "partial" && <p className="row__note">{state.support.note}</p>}
-        {unsupported && (
+        {state.support.level === "partial" && (
+          <p className="row__note">
+            {tOr(`support.note.${state.support.note.key}`, state.support.note.en)}
+          </p>
+        )}
+        {/* Narrowed inline, not via the `unsupported` alias: a boolean does not
+            tell TypeScript which arm of the union it is looking at. */}
+        {state.support.level === "unsupported" && (
           <p className="row__note row__note--off">
-            {t("support.unsupported")} — {state.support.note}
+            {t("support.unsupported")} —{" "}
+            {tOr(`support.note.${state.support.note.key}`, state.support.note.en)}
           </p>
         )}
         {broken && (

@@ -78,17 +78,44 @@ impl BuildRange {
     }
 }
 
+/// A caveat about a setting, carried as a translation key *and* an English
+/// sentence.
+///
+/// The key is what the UI looks up (`support.note.<key>`), so Arabic wording
+/// lives in the locale files where the rest of it does. The English text rides
+/// along so the CLI — which is English-only and has no locale files — can print
+/// something useful, and so the UI has a fallback for a note nobody has
+/// translated yet. Neither side has to keep a copy of the other's strings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct SupportNote {
+    pub key: &'static str,
+    pub en: &'static str,
+}
+
+impl SupportNote {
+    pub const fn new(key: &'static str, en: &'static str) -> Self {
+        SupportNote { key, en }
+    }
+}
+
+pub const NEEDS_NEWER_BUILD: SupportNote =
+    SupportNote::new("needs_newer_build", "Needs a newer Windows 11 build.");
+pub const CHANGED_IN_LATER_BUILD: SupportNote = SupportNote::new(
+    "changed_in_later_build",
+    "Windows changed this setting in a later build.",
+);
+
 /// Whether a tweak can be offered on the current build, and why not when it can't.
 ///
 /// `Unsupported` is deliberately loud: a setting that silently does nothing is
 /// worse than one the UI greys out with a reason.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(tag = "level", content = "note", rename_all = "snake_case")]
 pub enum Support {
     Full,
     /// Works, but with a caveat worth showing the user.
-    Partial(&'static str),
-    Unsupported(&'static str),
+    Partial(SupportNote),
+    Unsupported(SupportNote),
 }
 
 impl Support {
@@ -96,10 +123,10 @@ impl Support {
         !matches!(self, Support::Unsupported(_))
     }
 
-    pub fn note(&self) -> Option<&'static str> {
+    pub fn note(&self) -> Option<SupportNote> {
         match self {
             Support::Full => None,
-            Support::Partial(note) | Support::Unsupported(note) => Some(note),
+            Support::Partial(note) | Support::Unsupported(note) => Some(*note),
         }
     }
 }

@@ -175,7 +175,12 @@ impl MemoryRegistry {
 
 impl RegistryProvider for MemoryRegistry {
     fn read(&self, loc: &RegLoc) -> Result<Option<RegValue>> {
-        Ok(self.values.lock().unwrap().get(&Self::value_key(loc)).cloned())
+        Ok(self
+            .values
+            .lock()
+            .unwrap()
+            .get(&Self::value_key(loc))
+            .cloned())
     }
 
     fn write(&self, loc: &RegLoc, value: &RegValue) -> Result<()> {
@@ -196,11 +201,18 @@ impl RegistryProvider for MemoryRegistry {
     }
 
     fn key_exists(&self, hive: Hive, path: &str) -> Result<bool> {
-        Ok(self.keys.lock().unwrap().contains_key(&Self::key_key(hive, path)))
+        Ok(self
+            .keys
+            .lock()
+            .unwrap()
+            .contains_key(&Self::key_key(hive, path)))
     }
 
     fn create_key(&self, hive: Hive, path: &str) -> Result<()> {
-        self.keys.lock().unwrap().insert(Self::key_key(hive, path), ());
+        self.keys
+            .lock()
+            .unwrap()
+            .insert(Self::key_key(hive, path), ());
         Ok(())
     }
 
@@ -209,9 +221,8 @@ impl RegistryProvider for MemoryRegistry {
         // way `RegDeleteTree` does — otherwise the fake would let a revert look
         // clean while the real thing left values behind.
         let target = path.to_lowercase();
-        let covered = |candidate: &str| {
-            candidate == target || candidate.starts_with(&format!("{target}\\"))
-        };
+        let covered =
+            |candidate: &str| candidate == target || candidate.starts_with(&format!("{target}\\"));
 
         let hive_prefix = format!("{}|", hive.short());
         self.keys.lock().unwrap().retain(|k, _| {
@@ -219,7 +230,10 @@ impl RegistryProvider for MemoryRegistry {
                 .map_or(true, |rest| !covered(rest))
         });
         self.values.lock().unwrap().retain(|k, _| {
-            match k.strip_prefix(&hive_prefix).and_then(|rest| rest.rsplit_once('|')) {
+            match k
+                .strip_prefix(&hive_prefix)
+                .and_then(|rest| rest.rsplit_once('|'))
+            {
                 Some((key_path, _name)) => !covered(key_path),
                 None => true,
             }

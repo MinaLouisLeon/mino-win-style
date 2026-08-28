@@ -39,7 +39,10 @@ fn lived_in_registry() -> Arc<MemoryRegistry> {
     let personalize = r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize";
 
     reg.seed(&hkcu(personalize, "AppsUseLightTheme"), RegValue::Dword(1));
-    reg.seed(&hkcu(personalize, "SystemUsesLightTheme"), RegValue::Dword(1));
+    reg.seed(
+        &hkcu(personalize, "SystemUsesLightTheme"),
+        RegValue::Dword(1),
+    );
     reg.seed(&hkcu(advanced, "TaskbarAl"), RegValue::Dword(1));
     reg.seed(&hkcu(advanced, "HideFileExt"), RegValue::Dword(1));
     // `Hidden`, `TaskbarDa` and the whole accent ramp are deliberately absent.

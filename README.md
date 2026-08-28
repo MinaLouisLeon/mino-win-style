@@ -6,10 +6,11 @@ Explorer — and put every change back exactly as it was.
 A Rust core (`mino-core`) drives the registry and the Win32 API directly. The
 interface is HTML and TypeScript running in WebView2, hosted by Tauri 2.
 
-> **Status: scaffold (M0 + most of M1). Never compiled.**
-> Rust and the MSVC toolchain are not installed on the machine this was written
-> on, by request. Everything below is written to compile, but nothing has been
-> run. See [Before the first build](#before-the-first-build).
+> **Status: M0 and most of M1. Builds, tests pass, reads a real machine.**
+> 37 tests green, clippy clean at `-D warnings`, and the CLI has been run
+> read-only against Windows 11 25H2 (build 26200.8106). Nothing has been
+> *applied* to a real machine yet — that is what a VM is for. See
+> [What has and has not been verified](#what-has-and-has-not-been-verified).
 
 ## Why it is built this way
 
@@ -41,41 +42,82 @@ packs/         style packs (`manifest.json` + assets)
 pack parser are unit-testable on any machine in milliseconds. Everything that
 touches the OS sits behind two traits, faked by `MemoryRegistry` in tests.
 
-## Before the first build
-
-Install, in this order:
-
-1. **Visual Studio 2022 Build Tools** with the *Desktop development with C++*
-   workload — this provides the MSVC linker Rust needs on Windows.
-   `winget install --id Microsoft.VisualStudio.2022.BuildTools -e`
-2. **Rust**: `winget install --id Rustlang.Rustup -e`, then
-   `rustup default stable-x86_64-pc-windows-msvc`
-3. **Tauri CLI**: `cargo install tauri-cli --version "^2"`
-4. **UI dependencies**: `pnpm --dir ui install`
-
-Then:
+## Building
 
 ```
-cargo test -p mino-core     # the part that matters; no Windows APIs involved
-cargo clippy --workspace
-cargo tauri dev             # from src-tauri, or `cargo tauri dev` at the root
+cargo test -p mino-core        # the part that matters; no Windows APIs involved
+cargo clippy --workspace --all-targets -- -D warnings
+pnpm --dir ui install
+pnpm --dir ui build
+cargo tauri dev                # needs: cargo install tauri-cli --version "^2"
 ```
 
-`pnpm --dir ui dev` also runs the interface on its own in a browser at
+`pnpm --dir ui dev` runs the interface on its own in a browser at
 <http://localhost:1420>, backed by the mock in `ui/src/lib/mock.ts`. Useful for
 layout work; it never touches the registry.
 
-### Expect to fix these first
+### Toolchain notes
 
-Written without a compiler to hand, so these are the places to look when the
-first `cargo build` complains:
+The intended target is **MSVC** (`stable-x86_64-pc-windows-msvc`), which needs
+the Visual Studio Build Tools with the *Desktop development with C++* workload.
+That is what release builds should use.
 
-| Where | What to check |
-| --- | --- |
-| `crates/mino-win/src/reg.rs` | Every `unsafe` call is written against `windows = "0.58"` exactly. Argument shapes (`uloptions: u32` vs `Option<u32>`) move between versions of that crate. |
-| `crates/mino-win/src/shell.rs` | Same, for `SendMessageTimeoutW`, `SHChangeNotify` and `SystemParametersInfoW`. |
-| `src-tauri/tauri.conf.json` | Validate against the v2 schema your installed Tauri CLI ships. |
-| `AccentColorTweak::palette` | The `AccentPalette` byte layout is an assumption, not a documented format. Set an accent through Settings, dump the value, diff it against the function. |
+Everything so far was built on the **GNU** toolchain instead, which works but
+needs two things to be known:
+
+- **`dlltool` is missing an assembler**, so any crate using `raw-dylib` import
+  libraries fails to compile. That is why `mino-core` has no `chrono` (it brings
+  in `windows-link`) and why `clap` is built without its `color` feature (it
+  brings in `windows-sys` via `anstream`). Both are improvements in their own
+  right; on MSVC neither restriction applies.
+- **`windres` breaks on spaces in paths**, and this checkout lives under
+  `C:\Users\Mina Louis\…`. Building `src-tauri` on GNU therefore needs a
+  space-free target directory:
+
+  ```powershell
+  $fso = New-Object -ComObject Scripting.FileSystemObject
+  $env:CARGO_TARGET_DIR = $fso.GetFolder("$PWD\target").ShortPath
+  cargo build -p mino-win-style
+  ```
+
+  MSVC does not use `windres` at all, so this disappears with the intended
+  toolchain.
+
+Icons: `src-tauri/icons/` holds a generated placeholder, because `tauri-build`
+refuses to run without `icon.ico`. Regenerate with
+`node tools/make-placeholder-icons.mjs`, or replace the lot with
+`pnpm tauri icon path\to\logo.png` once there is artwork.
+
+## What has and has not been verified
+
+**Verified**
+
+- 37 tests pass, including apply-then-revert byte-exactness against the
+  in-memory registry.
+- `cargo clippy -p mino-core -p mino-win -p mino-cli --all-targets -- -D warnings`
+  is clean.
+- The UI typechecks and builds, and was driven end to end in a browser against
+  the mock: both languages, RTL mirroring, the pending-changes bar and the
+  confirmation dialog.
+- **The Win32 read path works against a real machine.** `mino os` and
+  `mino list` read Windows 11 Pro 25H2 (26200.8106) correctly, and
+  `mino --dry-run apply` planned 14 registry writes without touching anything.
+- `AccentColorTweak` was corrected against the live registry: the accent DWORDs
+  carry `0xFF` in the high byte (not `0x00`), the `AccentPalette` ramp puts the
+  base at index 3, and the eighth entry is an unrelated colour that we now
+  preserve instead of overwriting.
+
+**Not verified — this is what the VM is for**
+
+- No change has ever been *applied* to a real machine. The write path,
+  the journal on disk, the `.reg` backup, the real revert, `WM_SETTINGCHANGE`
+  actually repainting the shell, and the Explorer restart are all untested
+  outside the fakes.
+- The Tauri window has never been opened. It compiles; nobody has watched it
+  start.
+- Suggested first VM run: `mino --dry-run apply`, then `mino apply`, then
+  compare against `mino history` and `mino safe-restore`, checking with
+  `reg export` before and after that the revert really is byte-exact.
 
 ## Testing
 

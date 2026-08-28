@@ -35,7 +35,10 @@ pub fn all() -> Vec<Box<dyn Tweak>> {
                 RegSpec::hkcu(ADVANCED, "ShowSuperHidden"),
                 Refresh::AssocChanged,
             )
-            .note("Shows system files. Useful for troubleshooting, easy to break things with."),
+            .note(
+                "system_files",
+                "Shows system files. Useful for troubleshooting, easy to break things with.",
+            ),
         ),
         Box::new(ChoiceTweak::new(
             "explorer.launch_to",
@@ -65,8 +68,7 @@ pub fn all() -> Vec<Box<dyn Tweak>> {
 pub struct ClassicContextMenuTweak;
 
 impl ClassicContextMenuTweak {
-    const CLSID: &'static str =
-        r"Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}";
+    const CLSID: &'static str = r"Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}";
     const INPROC: &'static str =
         r"Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32";
 }
@@ -93,7 +95,9 @@ impl Tweak for ClassicContextMenuTweak {
     }
 
     fn read(&self, reg: &dyn RegistryProvider) -> Result<Value> {
-        Ok(Value::Bool(reg.key_exists(Hive::CurrentUser, Self::INPROC)?))
+        Ok(Value::Bool(
+            reg.key_exists(Hive::CurrentUser, Self::INPROC)?,
+        ))
     }
 
     fn plan(&self, reg: &dyn RegistryProvider, want: &Value) -> Result<ChangeSet> {

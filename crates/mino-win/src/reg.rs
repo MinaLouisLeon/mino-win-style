@@ -46,15 +46,7 @@ fn fail(what: &str, status: WIN32_ERROR) -> Error {
 /// not an error — an unset value is how Windows spells "default".
 fn open(hive: Hive, path: &str, access: REG_SAM_FLAGS) -> Result<Option<Key>> {
     let mut handle = HKEY::default();
-    let status = unsafe {
-        RegOpenKeyExW(
-            root(hive),
-            &HSTRING::from(path),
-            0,
-            access,
-            &mut handle,
-        )
-    };
+    let status = unsafe { RegOpenKeyExW(root(hive), &HSTRING::from(path), 0, access, &mut handle) };
     match status {
         s if s == ERROR_SUCCESS => Ok(Some(Key(handle))),
         s if s == ERROR_FILE_NOT_FOUND => Ok(None),
@@ -108,16 +100,8 @@ impl RegistryProvider for WindowsRegistry {
         // First call: how big is it, and what type?
         let mut kind = REG_VALUE_TYPE::default();
         let mut size: u32 = 0;
-        let status = unsafe {
-            RegQueryValueExW(
-                key.0,
-                &name,
-                None,
-                Some(&mut kind),
-                None,
-                Some(&mut size),
-            )
-        };
+        let status =
+            unsafe { RegQueryValueExW(key.0, &name, None, Some(&mut kind), None, Some(&mut size)) };
         match status {
             s if s == ERROR_SUCCESS => {}
             s if s == ERROR_FILE_NOT_FOUND => return Ok(None),
@@ -178,16 +162,8 @@ impl RegistryProvider for WindowsRegistry {
             RegValue::Binary(b) => (REG_BINARY, b.clone()),
         };
 
-        let status = unsafe {
-            RegSetValueExW(
-                key.0,
-                &name,
-                0,
-                kind,
-                Some(&bytes),
-                bytes.len() as u32,
-            )
-        };
+        // The slice carries its own length here — no separate cbData argument.
+        let status = unsafe { RegSetValueExW(key.0, &name, 0, kind, Some(&bytes)) };
         if status == ERROR_SUCCESS {
             Ok(())
         } else {

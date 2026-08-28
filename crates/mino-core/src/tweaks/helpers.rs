@@ -3,7 +3,9 @@
 //! the individual tweak definitions to a single readable literal each.
 
 use crate::error::{Error, Result};
-use crate::os::{BuildRange, OsBuild, Support};
+use crate::os::{
+    BuildRange, OsBuild, Support, SupportNote, CHANGED_IN_LATER_BUILD, NEEDS_NEWER_BUILD,
+};
 use crate::provider::{RegSpec, RegValue, RegistryProvider};
 use crate::tweak::{Category, Change, ChangeSet, Privilege, Refresh, Tier, Tweak};
 use crate::value::{Value, ValueKind};
@@ -27,7 +29,7 @@ pub struct BoolTweak {
     pub privilege: Privilege,
     /// Turns `Support::Full` into `Support::Partial`, for settings that work but
     /// come with a caveat the user should see.
-    pub note: Option<&'static str>,
+    pub note: Option<SupportNote>,
 }
 
 impl BoolTweak {
@@ -73,8 +75,8 @@ impl BoolTweak {
         self
     }
 
-    pub const fn note(mut self, note: &'static str) -> Self {
-        self.note = Some(note);
+    pub const fn note(mut self, key: &'static str, en: &'static str) -> Self {
+        self.note = Some(SupportNote::new(key, en));
         self
     }
 }
@@ -106,10 +108,8 @@ impl Tweak for BoolTweak {
         match (self.builds.contains(os.build), self.note) {
             (true, Some(note)) => Support::Partial(note),
             (true, None) => Support::Full,
-            (false, _) if os.build < self.builds.min => {
-                Support::Unsupported("Needs a newer Windows 11 build.")
-            }
-            (false, _) => Support::Unsupported("Windows changed this setting in a later build."),
+            (false, _) if os.build < self.builds.min => Support::Unsupported(NEEDS_NEWER_BUILD),
+            (false, _) => Support::Unsupported(CHANGED_IN_LATER_BUILD),
         }
     }
 
@@ -167,7 +167,7 @@ pub struct ChoiceTweak {
     pub refresh: Refresh,
     pub builds: BuildRange,
     pub privilege: Privilege,
-    pub note: Option<&'static str>,
+    pub note: Option<SupportNote>,
 }
 
 impl ChoiceTweak {
@@ -203,8 +203,8 @@ impl ChoiceTweak {
         self
     }
 
-    pub const fn note(mut self, note: &'static str) -> Self {
-        self.note = Some(note);
+    pub const fn note(mut self, key: &'static str, en: &'static str) -> Self {
+        self.note = Some(SupportNote::new(key, en));
         self
     }
 
@@ -235,7 +235,11 @@ impl Tweak for ChoiceTweak {
     }
     fn value_kind(&self) -> ValueKind {
         ValueKind::Choice {
-            choices: self.map.iter().map(|(name, _)| (*name).to_string()).collect(),
+            choices: self
+                .map
+                .iter()
+                .map(|(name, _)| (*name).to_string())
+                .collect(),
         }
     }
     fn builds(&self) -> BuildRange {
@@ -252,10 +256,8 @@ impl Tweak for ChoiceTweak {
         match (self.builds.contains(os.build), self.note) {
             (true, Some(note)) => Support::Partial(note),
             (true, None) => Support::Full,
-            (false, _) if os.build < self.builds.min => {
-                Support::Unsupported("Needs a newer Windows 11 build.")
-            }
-            (false, _) => Support::Unsupported("Windows changed this setting in a later build."),
+            (false, _) if os.build < self.builds.min => Support::Unsupported(NEEDS_NEWER_BUILD),
+            (false, _) => Support::Unsupported(CHANGED_IN_LATER_BUILD),
         }
     }
 
@@ -263,10 +265,12 @@ impl Tweak for ChoiceTweak {
         let loc = self.spec.loc();
         let choice = match reg.read(&loc)? {
             None => self.default,
-            Some(RegValue::Dword(d)) => self.choice_for(d).ok_or_else(|| Error::UnexpectedState {
-                loc: loc.to_string(),
-                detail: format!("{d} is not one of the values this app knows"),
-            })?,
+            Some(RegValue::Dword(d)) => {
+                self.choice_for(d).ok_or_else(|| Error::UnexpectedState {
+                    loc: loc.to_string(),
+                    detail: format!("{d} is not one of the values this app knows"),
+                })?
+            }
             Some(other) => {
                 return Err(Error::UnexpectedState {
                     loc: loc.to_string(),

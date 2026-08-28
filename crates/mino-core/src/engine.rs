@@ -25,7 +25,11 @@ pub struct PlanItem {
 #[derive(Debug, Clone, Serialize)]
 pub struct Skipped {
     pub tweak: String,
+    /// English, always present — the CLI prints this.
     pub reason: String,
+    /// Set when the reason came from a [`crate::os::SupportNote`], so the UI can
+    /// show it in the user's language instead.
+    pub reason_key: Option<&'static str>,
 }
 
 /// What would happen, worked out without touching anything. The UI shows this
@@ -158,7 +162,11 @@ impl Engine {
     /// Works out the difference between what is wanted and what is there.
     /// Nothing is written, and nothing is journalled — this is safe to call on
     /// every keystroke.
-    pub fn plan(&self, label: impl Into<String>, desired: &BTreeMap<String, Value>) -> Result<Plan> {
+    pub fn plan(
+        &self,
+        label: impl Into<String>,
+        desired: &BTreeMap<String, Value>,
+    ) -> Result<Plan> {
         let mut items = Vec::new();
         let mut skipped = Vec::new();
 
@@ -169,6 +177,7 @@ impl Engine {
                     skipped.push(Skipped {
                         tweak: id.clone(),
                         reason: format!("This build of the app does not know the setting `{id}`."),
+                        reason_key: Some("unknown_setting"),
                     });
                     continue;
                 }
@@ -176,9 +185,13 @@ impl Engine {
 
             let support = tweak.support(&self.os);
             if !support.is_usable() {
+                let note = support.note();
                 skipped.push(Skipped {
                     tweak: id.clone(),
-                    reason: support.note().unwrap_or("Not supported here.").to_string(),
+                    reason: note
+                        .map(|n| n.en.to_string())
+                        .unwrap_or_else(|| "Not supported here.".to_string()),
+                    reason_key: note.map(|n| n.key),
                 });
                 continue;
             }
@@ -189,6 +202,7 @@ impl Engine {
                     skipped.push(Skipped {
                         tweak: id.clone(),
                         reason: format!("Could not read the current value: {err}"),
+                        reason_key: None,
                     });
                     continue;
                 }

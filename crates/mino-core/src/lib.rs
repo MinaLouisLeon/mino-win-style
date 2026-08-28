@@ -16,6 +16,7 @@ pub mod journal;
 pub mod os;
 pub mod profile;
 pub mod provider;
+pub mod time;
 pub mod tweak;
 pub mod tweaks;
 pub mod value;

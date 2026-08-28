@@ -114,7 +114,7 @@ mod windows_main {
                     let tier = format!("{:?}", state.info.tier);
                     println!("{:<42} {:<10} {}", state.info.id, tier, value);
                     if let Some(note) = state.info.support.note() {
-                        println!("{:<42} {:<10} {}", "", "", note);
+                        println!("{:<42} {:<10} {}", "", "", note.en);
                     }
                 }
             }
@@ -152,7 +152,12 @@ mod windows_main {
                 for entry in entries {
                     println!(
                         "{}  {:<11}  {:>3} change(s)  {}",
-                        entry.when.format("%Y-%m-%d %H:%M:%S"),
+                        // "2026-08-28T14:31:07.482Z" -> "2026-08-28 14:31:07"
+                        entry
+                            .when
+                            .get(..19)
+                            .unwrap_or(&entry.when)
+                            .replace('T', " "),
                         format!("{:?}", entry.status),
                         entry.changes.len(),
                         entry.label

@@ -71,7 +71,9 @@ pub enum ValueKind {
     Color,
     /// Ids only. The UI looks up labels as `tweak.<id>.choice.<choice>` in its
     /// locale files, so Arabic and English wording never leaks into the core.
-    Choice { choices: Vec<String> },
+    Choice {
+        choices: Vec<String>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -104,11 +106,14 @@ impl Color {
         Ok(Color::new(byte(0), byte(2), byte(4)))
     }
 
-    /// Windows stores accent colours as a DWORD in `0x00BBGGRR` order — the
+    /// Windows stores accent colours as a DWORD in `0xAABBGGRR` order — the
     /// reverse of the `#RRGGBB` people write. Getting this backwards is the
     /// classic bug in every accent-colour tool, so it lives in exactly one place.
+    ///
+    /// The alpha byte is `FF`, not zero: measured on Windows 11 25H2, where
+    /// `AccentColor` for the default blue reads `0xFFD77800`.
     pub fn to_abgr_dword(self) -> u32 {
-        u32::from(self.r) | (u32::from(self.g) << 8) | (u32::from(self.b) << 16)
+        0xFF00_0000 | u32::from(self.r) | (u32::from(self.g) << 8) | (u32::from(self.b) << 16)
     }
 
     pub fn from_abgr_dword(value: u32) -> Self {
@@ -119,13 +124,61 @@ impl Color {
         )
     }
 
-    /// Mix towards white (`amount > 0`) or black (`amount < 0`), where `amount`
-    /// runs from -1.0 to 1.0. Used to derive the accent shade ramp.
-    pub fn shade(self, amount: f32) -> Self {
-        let target = if amount >= 0.0 { 255.0 } else { 0.0 };
-        let t = amount.abs().clamp(0.0, 1.0);
-        let mix = |c: u8| (f32::from(c) + (target - f32::from(c)) * t).round().clamp(0.0, 255.0) as u8;
-        Color::new(mix(self.r), mix(self.g), mix(self.b))
+    /// Hue (0–360), saturation and lightness (0–1).
+    pub fn to_hsl(self) -> (f32, f32, f32) {
+        let (r, g, b) = (
+            f32::from(self.r) / 255.0,
+            f32::from(self.g) / 255.0,
+            f32::from(self.b) / 255.0,
+        );
+        let max = r.max(g).max(b);
+        let min = r.min(g).min(b);
+        let l = (max + min) / 2.0;
+        let d = max - min;
+        if d <= f32::EPSILON {
+            return (0.0, 0.0, l);
+        }
+        let s = if l > 0.5 {
+            d / (2.0 - max - min)
+        } else {
+            d / (max + min)
+        };
+        let h = if max == r {
+            (g - b) / d
+        } else if max == g {
+            (b - r) / d + 2.0
+        } else {
+            (r - g) / d + 4.0
+        };
+        ((h * 60.0).rem_euclid(360.0), s, l)
+    }
+
+    pub fn from_hsl(h: f32, s: f32, l: f32) -> Self {
+        let l = l.clamp(0.0, 1.0);
+        let c = (1.0 - (2.0 * l - 1.0).abs()) * s.clamp(0.0, 1.0);
+        let hp = h.rem_euclid(360.0) / 60.0;
+        let x = c * (1.0 - (hp % 2.0 - 1.0).abs());
+        let (r, g, b) = match hp as u32 {
+            0 => (c, x, 0.0),
+            1 => (x, c, 0.0),
+            2 => (0.0, c, x),
+            3 => (0.0, x, c),
+            4 => (x, 0.0, c),
+            _ => (c, 0.0, x),
+        };
+        let m = l - c / 2.0;
+        let byte = |v: f32| ((v + m) * 255.0).round().clamp(0.0, 255.0) as u8;
+        Color::new(byte(r), byte(g), byte(b))
+    }
+
+    /// Move lightness by `delta`, keeping hue and saturation.
+    ///
+    /// Lightening in HSL rather than mixing towards white in RGB, because an RGB
+    /// mix washes the hue out: for the default blue, mixing gives `#99C9EE`
+    /// where Windows' own light shade is `#99EBFF`.
+    pub fn lighten(self, delta: f32) -> Self {
+        let (h, s, l) = self.to_hsl();
+        Color::from_hsl(h, s, l + delta)
     }
 
     /// Relative luminance, used to decide whether a colour is light enough that
@@ -175,10 +228,37 @@ mod tests {
     }
 
     #[test]
-    fn abgr_is_byte_reversed() {
+    fn abgr_is_byte_reversed_with_full_alpha() {
         let c = Color::new(0x0F, 0x62, 0xC0);
-        assert_eq!(c.to_abgr_dword(), 0x00C0620F);
-        assert_eq!(Color::from_abgr_dword(0x00C0620F), c);
+        assert_eq!(c.to_abgr_dword(), 0xFFC0620F);
+        assert_eq!(Color::from_abgr_dword(0xFFC0620F), c);
+    }
+
+    #[test]
+    fn matches_what_windows_stores_for_its_default_accent() {
+        // Read from a Windows 11 25H2 machine: AccentColor = 0xFFD77800.
+        let default_blue = Color::new(0x00, 0x78, 0xD7);
+        assert_eq!(default_blue.to_abgr_dword(), 0xFFD77800);
+        assert_eq!(Color::from_abgr_dword(0xFFD77800), default_blue);
+    }
+
+    #[test]
+    fn hsl_round_trips_within_a_step() {
+        for c in [
+            Color::new(0x00, 0x78, 0xD4),
+            Color::new(0xF7, 0x63, 0x0C),
+            Color::new(0x80, 0x80, 0x80),
+            Color::new(0x00, 0x00, 0x00),
+            Color::new(0xFF, 0xFF, 0xFF),
+        ] {
+            let (h, s, l) = c.to_hsl();
+            let back = Color::from_hsl(h, s, l);
+            let close = |a: u8, b: u8| (i16::from(a) - i16::from(b)).abs() <= 1;
+            assert!(
+                close(c.r, back.r) && close(c.g, back.g) && close(c.b, back.b),
+                "{c} came back as {back}"
+            );
+        }
     }
 
     #[test]
@@ -188,10 +268,15 @@ mod tests {
     }
 
     #[test]
-    fn shading_moves_towards_white_and_black() {
-        let c = Color::new(0x80, 0x80, 0x80);
-        assert!(c.shade(1.0) == Color::new(255, 255, 255));
-        assert!(c.shade(-1.0) == Color::new(0, 0, 0));
-        assert_eq!(c.shade(0.0), c);
+    fn lightening_keeps_the_hue_and_clamps_at_the_ends() {
+        let base = Color::new(0x00, 0x78, 0xD4);
+        let (h, _, _) = base.to_hsl();
+        let (lighter_h, _, lighter_l) = base.lighten(0.25).to_hsl();
+        assert!((h - lighter_h).abs() < 1.0, "hue drifted");
+        assert!(lighter_l > base.to_hsl().2);
+
+        assert_eq!(base.lighten(1.0), Color::new(255, 255, 255));
+        assert_eq!(base.lighten(-1.0), Color::new(0, 0, 0));
+        assert_eq!(base.lighten(0.0), base);
     }
 }

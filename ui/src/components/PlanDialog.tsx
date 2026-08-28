@@ -16,7 +16,7 @@ interface Props {
  * touched, and hiding the detail would defeat the point.
  */
 export function PlanDialog({ plan, busy, onApply, onCancel }: Props) {
-  const { t } = useI18n();
+  const { t, tOr } = useI18n();
   const text = useTweakText();
   const applyRef = useRef<HTMLButtonElement>(null);
 
@@ -31,6 +31,12 @@ export function PlanDialog({ plan, busy, onApply, onCancel }: Props) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [busy, onCancel]);
+
+  /** A value as the user would say it, not as the registry stores it. */
+  const show = (tweak: string, value: boolean | string) => {
+    if (typeof value === "boolean") return t(value ? "common.on" : "common.off");
+    return value.startsWith("#") ? value : text.choice(tweak, value);
+  };
 
   if (!plan) return null;
 
@@ -55,9 +61,9 @@ export function PlanDialog({ plan, busy, onApply, onCancel }: Props) {
               <div className="plan__head">
                 <span>{text.name(item.tweak)}</span>
                 <span className="plan__values">
-                  <code>{describe(item.from)}</code>
+                  <code>{show(item.tweak, item.from)}</code>
                   <span aria-hidden="true">→</span>
-                  <code className="plan__to">{describe(item.to)}</code>
+                  <code className="plan__to">{show(item.tweak, item.to)}</code>
                 </span>
               </div>
               <details>
@@ -84,7 +90,8 @@ export function PlanDialog({ plan, busy, onApply, onCancel }: Props) {
             <ul>
               {plan.skipped.map((s) => (
                 <li key={s.tweak}>
-                  {text.name(s.tweak)} — {s.reason}
+                  {text.name(s.tweak)} —{" "}
+                  {s.reason_key ? tOr(`support.note.${s.reason_key}`, s.reason) : s.reason}
                 </li>
               ))}
             </ul>
@@ -111,9 +118,4 @@ export function PlanDialog({ plan, busy, onApply, onCancel }: Props) {
       </div>
     </div>
   );
-}
-
-function describe(value: boolean | string): string {
-  if (typeof value === "boolean") return value ? "on" : "off";
-  return value;
 }

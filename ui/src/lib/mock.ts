@@ -43,7 +43,7 @@ const defs: Def[] = [
     tier: "a",
     kind: bool(),
     value: false,
-    support: { level: "partial", note: "Windows only shows this while dark mode is on." },
+    support: { level: "partial", note: { key: "dark_mode_only", en: "Windows only shows this while dark mode is on." } },
   },
 
   { id: "taskbar.alignment", category: "taskbar", tier: "a", kind: choice("left", "center"), value: "center" },
@@ -62,7 +62,7 @@ const defs: Def[] = [
     tier: "b",
     kind: choice("small", "medium", "large"),
     value: "medium",
-    support: { level: "unsupported", note: "Windows changed this setting in a later build." },
+    support: { level: "unsupported", note: { key: "changed_in_later_build", en: "Windows changed this setting in a later build." } },
   },
   { id: "taskbar.seconds_in_clock", category: "taskbar", tier: "a", kind: bool(), value: false },
   {
@@ -71,7 +71,7 @@ const defs: Def[] = [
     tier: "a",
     kind: bool(),
     value: false,
-    support: { level: "partial", note: "Mirrors the End Task switch in Settings for developers." },
+    support: { level: "partial", note: { key: "dev_end_task", en: "Mirrors the End Task switch in Settings for developers." } },
   },
 
   {
@@ -94,7 +94,10 @@ const defs: Def[] = [
     value: false,
     support: {
       level: "partial",
-      note: "Shows system files. Useful for troubleshooting, easy to break things with.",
+      note: {
+        key: "system_files",
+        en: "Shows system files. Useful for troubleshooting, easy to break things with.",
+      },
     },
   },
   {
@@ -142,11 +145,15 @@ function buildPlan(label: string, settings: Record<string, Value>): Plan {
   for (const [id, want] of Object.entries(settings)) {
     const def = defs.find((d) => d.id === id);
     if (!def) {
-      skipped.push({ tweak: id, reason: `This build of the app does not know the setting \`${id}\`.` });
+      skipped.push({
+        tweak: id,
+        reason: `This build of the app does not know the setting \`${id}\`.`,
+        reason_key: "unknown_setting",
+      });
       continue;
     }
     if (def.support?.level === "unsupported") {
-      skipped.push({ tweak: id, reason: def.support.note });
+      skipped.push({ tweak: id, reason: def.support.note.en, reason_key: def.support.note.key });
       continue;
     }
     const from = current.get(id) as Value;

@@ -11,6 +11,9 @@
 
   "lang.switch": "English",
 
+  "common.on": "مفعّل",
+  "common.off": "معطّل",
+
   "home.title": "ويندوز لديك الآن",
   "home.subtitle": "كل ما بالأسفل مقروء مباشرة من هذا الجهاز، ولا يتغيّر شيء قبل أن تطبّقه بنفسك.",
   "home.os": "يعمل على",
@@ -18,7 +21,7 @@
   "home.revertAll": "أرجِع كل شيء",
   "home.revertAllHint": "يتراجع عن كل ما فعله هذا التطبيق، بدءًا من الأحدث.",
   "home.mock": "وضع العرض: نواة Rust غير مشغّلة، وهذه القيم محاكاة.",
-  "home.counts": "{n} إعدادًا متاحًا على هذا الإصدار",
+  "home.available": "الإعدادات المتاحة هنا",
 
   "changes.pending": "تغيير واحد لم يُطبَّق",
   "changes.pendingPlural": "{n} تغييرات لم تُطبَّق",
@@ -54,6 +57,13 @@
   "tier.b": "إعداد غير موثّق — قد يغيّره تحديث ويندوز أو يتجاهله.",
   "support.unsupported": "غير متاح على إصدار ويندوز هذا",
   "error.read": "تعذّرت قراءة هذا الإعداد",
+
+  "support.note.needs_newer_build": "يحتاج إصدارًا أحدث من ويندوز 11.",
+  "support.note.changed_in_later_build": "غيّر ويندوز هذا الإعداد في إصدار لاحق.",
+  "support.note.dark_mode_only": "لا يظهر أثره إلا والوضع الداكن مفعّل.",
+  "support.note.system_files": "يُظهر ملفات النظام. مفيد للتشخيص، وسهل أن تُفسد به شيئًا.",
+  "support.note.dev_end_task": "يوازي خيار «إنهاء المهمة» في إعدادات المطوّرين.",
+  "support.note.unknown_setting": "إعداد لا تعرفه هذه النسخة من التطبيق.",
 
   "tweak.appearance.dark_mode.name": "الوضع الداكن",
   "tweak.appearance.dark_mode.desc": "يُطبَّق على التطبيقات وعلى واجهة ويندوز معًا.",

@@ -25,6 +25,8 @@ interface I18nValue {
   t: (key: string, vars?: Record<string, string | number>) => string;
   /** Singular/plural pair, since Arabic and English disagree about where 1 ends. */
   tCount: (key: string, n: number) => string;
+  /** Translate if we have it, otherwise show what the Rust side sent. */
+  tOr: (key: string, fallback: string) => string;
 }
 
 const I18nContext = createContext<I18nValue | null>(null);
@@ -76,9 +78,17 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     [t],
   );
 
+  const tOr = useCallback(
+    (key: string, fallback: string) => {
+      const text = t(key);
+      return text === key ? fallback : text;
+    },
+    [t],
+  );
+
   const value = useMemo<I18nValue>(
-    () => ({ lang, dir, setLang, t, tCount }),
-    [lang, dir, setLang, t, tCount],
+    () => ({ lang, dir, setLang, t, tCount, tOr }),
+    [lang, dir, setLang, t, tCount, tOr],
   );
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;

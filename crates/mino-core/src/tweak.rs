@@ -202,9 +202,9 @@ pub trait Tweak: Send + Sync {
         if self.builds().contains(os.build) {
             Support::Full
         } else if os.build < self.builds().min {
-            Support::Unsupported("Needs a newer Windows 11 build.")
+            Support::Unsupported(crate::os::NEEDS_NEWER_BUILD)
         } else {
-            Support::Unsupported("Windows removed or changed this setting in a later build.")
+            Support::Unsupported(crate::os::CHANGED_IN_LATER_BUILD)
         }
     }
 

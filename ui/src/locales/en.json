@@ -11,6 +11,9 @@
 
   "lang.switch": "العربية",
 
+  "common.on": "on",
+  "common.off": "off",
+
   "home.title": "Your Windows, right now",
   "home.subtitle": "Everything below is read live from this machine. Nothing changes until you apply it.",
   "home.os": "Running on",
@@ -18,7 +21,7 @@
   "home.revertAll": "Revert everything",
   "home.revertAllHint": "Undoes every change this app has ever made, newest first.",
   "home.mock": "Demo mode: the Rust core is not running, so these values are simulated.",
-  "home.counts": "{n} settings available on this build",
+  "home.available": "Settings available here",
 
   "changes.pending": "{n} unapplied change",
   "changes.pendingPlural": "{n} unapplied changes",

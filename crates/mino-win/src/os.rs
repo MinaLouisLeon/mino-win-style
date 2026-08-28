@@ -67,10 +67,7 @@ mod tests {
         reg.seed(&loc("CurrentBuildNumber"), RegValue::Sz("26200".into()));
         reg.seed(&loc("UBR"), RegValue::Dword(8106));
         reg.seed(&loc("DisplayVersion"), RegValue::Sz("25H2".into()));
-        reg.seed(
-            &loc("ProductName"),
-            RegValue::Sz("Windows 10 Pro".into()),
-        );
+        reg.seed(&loc("ProductName"), RegValue::Sz("Windows 10 Pro".into()));
 
         let os = detect(&reg).unwrap();
         assert_eq!(os.build, 26200);

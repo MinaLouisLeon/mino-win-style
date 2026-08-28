@@ -3,8 +3,7 @@ use crate::provider::RegSpec;
 use crate::tweak::{Category, Refresh, Tier, Tweak};
 use crate::tweaks::helpers::{BoolTweak, ChoiceTweak};
 
-pub(crate) const ADVANCED: &str =
-    r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced";
+pub(crate) const ADVANCED: &str = r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced";
 const SEARCH: &str = r"Software\Microsoft\Windows\CurrentVersion\Search";
 
 /// Explorer watches these keys directly and picks most of them up within a
@@ -65,10 +64,7 @@ pub fn all() -> Vec<Box<dyn Tweak>> {
             .tier(Tier::B)
             // Reliable up to 22H2; later builds ignore it or handle it
             // inconsistently, so it is gated rather than quietly broken.
-            .builds(BuildRange::between(
-                crate::os::WIN11_21H2,
-                WIN11_22H2,
-            )),
+            .builds(BuildRange::between(crate::os::WIN11_21H2, WIN11_22H2)),
         ),
         Box::new(
             BoolTweak::new(
@@ -87,7 +83,10 @@ pub fn all() -> Vec<Box<dyn Tweak>> {
                 TRAY,
             )
             .builds(BuildRange::from(WIN11_24H2))
-            .note("Mirrors the End Task switch in Settings for developers."),
+            .note(
+                "dev_end_task",
+                "Mirrors the End Task switch in Settings for developers.",
+            ),
         ),
     ]
 }

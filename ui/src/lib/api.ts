@@ -21,10 +21,20 @@ export type ValueKind =
   | { kind: "color" }
   | { kind: "choice"; choices: string[] };
 
+/**
+ * `note.key` is a translation key (`support.note.<key>`); `note.en` is the
+ * English text the Rust side ships so the CLI has something to print and the UI
+ * has a fallback for anything not translated yet.
+ */
+export interface SupportNote {
+  key: string;
+  en: string;
+}
+
 export type Support =
   | { level: "full" }
-  | { level: "partial"; note: string }
-  | { level: "unsupported"; note: string };
+  | { level: "partial"; note: SupportNote }
+  | { level: "unsupported"; note: SupportNote };
 
 export type Refresh =
   | { kind: "none" }
@@ -69,7 +79,7 @@ export interface PlanItem {
 export interface Plan {
   label: string;
   items: PlanItem[];
-  skipped: { tweak: string; reason: string }[];
+  skipped: { tweak: string; reason: string; reason_key: string | null }[];
   needs_elevation: boolean;
   needs_shell_restart: boolean;
   needs_sign_out: boolean;

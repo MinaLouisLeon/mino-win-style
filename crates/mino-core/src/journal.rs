@@ -2,11 +2,11 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, Result};
 use crate::provider::{Hive, RegValue};
+use crate::time::Utc;
 use crate::tweak::Change;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -25,7 +25,8 @@ pub enum Status {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JournalEntry {
     pub id: String,
-    pub when: DateTime<Utc>,
+    /// RFC 3339, always UTC — sorts lexicographically in time order.
+    pub when: String,
     /// What the user did, e.g. "Applied pack: Midnight Cairo" or "Dark mode".
     pub label: String,
     pub status: Status,
@@ -37,11 +38,16 @@ pub struct JournalEntry {
 }
 
 impl JournalEntry {
-    pub fn new(label: impl Into<String>, os_build: u32, tweaks: Vec<String>, changes: Vec<Change>) -> Self {
-        let when = Utc::now();
+    pub fn new(
+        label: impl Into<String>,
+        os_build: u32,
+        tweaks: Vec<String>,
+        changes: Vec<Change>,
+    ) -> Self {
+        let now = Utc::now();
         JournalEntry {
-            id: when.format("%Y%m%dT%H%M%S%3f").to_string(),
-            when,
+            id: now.compact(),
+            when: now.rfc3339(),
             label: label.into(),
             status: Status::Pending,
             os_build,
@@ -124,6 +130,7 @@ impl Journal {
                 }
             }
         }
+        // Newest first. RFC 3339 in UTC means string order is time order.
         entries.sort_by(|a, b| b.when.cmp(&a.when));
         Ok(entries)
     }
@@ -131,10 +138,9 @@ impl Journal {
     /// The most recent entry that actually changed something and has not been
     /// reverted — what `--safe-restore latest` targets.
     pub fn latest_revertible(&self) -> Result<Option<JournalEntry>> {
-        Ok(self
-            .list()?
-            .into_iter()
-            .find(|e| matches!(e.status, Status::Applied | Status::Pending) && !e.changes.is_empty()))
+        Ok(self.list()?.into_iter().find(|e| {
+            matches!(e.status, Status::Applied | Status::Pending) && !e.changes.is_empty()
+        }))
     }
 }
 
@@ -143,7 +149,10 @@ impl Journal {
 /// This is the escape hatch: if every other part of this program is broken, a
 /// user can still double-click the file Windows itself wrote the format for.
 pub fn reg_backup(changes: &[Change]) -> String {
-    let mut by_key: BTreeMap<(Hive, String), Vec<(String, Option<RegValue>)>> = BTreeMap::new();
+    /// Value name -> what was there before, grouped under one key.
+    type ValuesByKey = BTreeMap<(Hive, String), Vec<(String, Option<RegValue>)>>;
+
+    let mut by_key: ValuesByKey = BTreeMap::new();
     let mut absent_keys: Vec<(Hive, String)> = Vec::new();
 
     for change in changes {
@@ -267,7 +276,9 @@ mod tests {
             from_present: false,
             to_present: true,
         }];
-        assert!(reg_backup(&changes).contains(r"[-HKEY_CURRENT_USER\Software\Classes\CLSID\{test}]"));
+        assert!(
+            reg_backup(&changes).contains(r"[-HKEY_CURRENT_USER\Software\Classes\CLSID\{test}]")
+        );
     }
 
     #[test]

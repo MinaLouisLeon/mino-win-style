@@ -20,3 +20,6 @@ packs/**/*.minostyle
 .idea/
 Thumbs.db
 *.log
+
+# Playwright MCP scratch output
+.playwright-mcp/

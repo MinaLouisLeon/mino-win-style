@@ -54,11 +54,11 @@ export function Home({ os, tweaks, entries, journalDir, onRevertAll, onOpenCateg
 
         <article className="card">
           <span className="card__label">{t("tweak.appearance.dark_mode.name")}</span>
-          <strong>{dark?.value === true ? "on" : "off"}</strong>
+          <strong>{t(dark?.value === true ? "common.on" : "common.off")}</strong>
         </article>
 
         <article className="card">
-          <span className="card__label">{t("home.counts", { n: usable.length })}</span>
+          <span className="card__label">{t("home.available")}</span>
           <strong>{usable.length}</strong>
         </article>
       </section>
