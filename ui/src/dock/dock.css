@@ -1,0 +1,158 @@
+/*
+ * The dock window is transparent: everything painted here sits directly on the
+ * user's wallpaper, so anything not explicitly drawn must stay invisible.
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  /* The window is click-through nowhere, but the empty stage around the panel
+     should not show a text cursor. */
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#root {
+  height: 100%;
+}
+
+/* Fills the window; the panel sits at the bottom of it, leaving room above for
+   icons to grow into. */
+.stage {
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.dock {
+  display: flex;
+  align-items: flex-end;
+  border-radius: 20px;
+  background: rgba(30, 32, 40, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  min-width: 64px;
+  min-height: 40px;
+  justify-content: center;
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+}
+
+@media (prefers-color-scheme: light) {
+  .dock {
+    background: rgba(245, 246, 250, 0.55);
+    border-color: rgba(255, 255, 255, 0.7);
+    box-shadow:
+      0 12px 40px rgba(0, 0, 0, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  }
+}
+
+/* Whatever happens, the dock is a thing you can see. */
+.oops {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  padding: 0 8px;
+  white-space: nowrap;
+  max-width: 520px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.slot {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  flex: none;
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* No transition on width/height: the size is driven by the cursor position
+     every frame, and easing it turns the magnification to treacle. */
+  transition: none;
+}
+
+.icon img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.35));
+}
+
+.fallback {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  border-radius: 22%;
+  background: linear-gradient(150deg, #4a5a72, #2b3446);
+  color: #fff;
+  font-size: 55%;
+  font-weight: 600;
+}
+
+/* The running indicator, under the icon and outside the panel's padding. */
+.dot {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.dot--on {
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+}
+
+@media (prefers-color-scheme: light) {
+  .dot--on {
+    background: rgba(20, 22, 28, 0.7);
+    box-shadow: none;
+  }
+}
+
+.label {
+  position: absolute;
+  bottom: calc(100% + 14px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(30, 32, 40, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #f2f4f8;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icon {
+    transition: none;
+  }
+}

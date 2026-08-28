@@ -1,4 +1,4 @@
-import type { Category as Cat, JournalEntry, OsBuild, TweakState } from "../lib/api";
+import type { Category as Cat, DockConfig, JournalEntry, OsBuild, TweakState } from "../lib/api";
 import { useI18n } from "../i18n";
 
 interface Props {
@@ -6,13 +6,24 @@ interface Props {
   tweaks: TweakState[];
   entries: JournalEntry[];
   journalDir: string;
+  dock: DockConfig | null;
+  onDockChange: (enabled: boolean) => void;
   onRevertAll: () => void;
   onOpenCategory: (category: Cat) => void;
 }
 
-const CATEGORIES: Cat[] = ["appearance", "taskbar", "start", "explorer"];
+const CATEGORIES: Cat[] = ["appearance", "desktop", "taskbar", "start", "explorer"];
 
-export function Home({ os, tweaks, entries, journalDir, onRevertAll, onOpenCategory }: Props) {
+export function Home({
+  os,
+  tweaks,
+  entries,
+  journalDir,
+  dock,
+  onDockChange,
+  onRevertAll,
+  onOpenCategory,
+}: Props) {
   const { t } = useI18n();
 
   const usable = tweaks.filter((tweak) => tweak.support.level !== "unsupported");
@@ -78,6 +89,21 @@ export function Home({ os, tweaks, entries, journalDir, onRevertAll, onOpenCateg
             </button>
           );
         })}
+      </section>
+
+      <section className="panel">
+        <h2>{t("dock.title")}</h2>
+        <p className="muted">{t("dock.body")}</p>
+        <label className="dock-toggle">
+          <input
+            type="checkbox"
+            checked={dock?.enabled ?? false}
+            disabled={!dock}
+            onChange={(e) => onDockChange(e.target.checked)}
+          />
+          <span>{t("dock.show")}</span>
+        </label>
+        <p className="muted small">{t("dock.note")}</p>
       </section>
 
       <section className="panel">

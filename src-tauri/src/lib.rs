@@ -1,4 +1,5 @@
 pub mod commands;
+pub mod dock;
 pub mod packs;
 pub mod state;
 
@@ -36,7 +37,26 @@ pub fn run() {
             commands::list_packs,
             commands::plan_pack,
             commands::apply_pack,
+            dock::dock_config,
+            dock::dock_set_enabled,
+            dock::dock_layout,
+            dock::dock_items,
+            dock::dock_icon,
+            dock::dock_activate,
+            dock::dock_launch,
+            dock::dock_place,
+            dock::dock_trace,
         ])
+        .setup(|app| {
+            let config = dock::DockConfig::load();
+            dock::trace(&format!("setup: dock enabled = {}", config.enabled));
+            if config.enabled {
+                if let Err(err) = dock::show(&app.handle().clone()) {
+                    eprintln!("dock: {err}");
+                }
+            }
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("failed to start the Mino Win Style window");
 }

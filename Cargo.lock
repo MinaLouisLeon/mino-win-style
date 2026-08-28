@@ -1871,6 +1871,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mino-shell"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "windows 0.58.0",
+]
+
+[[package]]
 name = "mino-win"
 version = "0.1.0"
 dependencies = [
@@ -1883,6 +1891,7 @@ name = "mino-win-style"
 version = "0.1.0"
 dependencies = [
  "mino-core",
+ "mino-shell",
  "mino-win",
  "serde",
  "serde_json",

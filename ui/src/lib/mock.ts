@@ -136,6 +136,7 @@ const defs: Def[] = [
 
 const current = new Map<string, Value>(defs.map((d) => [d.id, d.value]));
 const entries: JournalEntry[] = [];
+let mockDockEnabled = false;
 
 const wait = <T,>(value: T): Promise<T> =>
   new Promise((resolve) => setTimeout(() => resolve(value), 120));
@@ -304,6 +305,12 @@ export const mockApi: Api = {
         "taskbar.search": "hidden",
       }),
     ),
+
+  dockConfig: () => wait({ enabled: mockDockEnabled, pinned: [], icon_size: 48 }),
+  dockSetEnabled: (enabled) => {
+    mockDockEnabled = enabled;
+    return wait({ enabled, pinned: [], icon_size: 48 });
+  },
 
   applyPack: (dir) => mockApi.applyChanges(`Look: ${dir}`, {
     "appearance.dark_mode": true,

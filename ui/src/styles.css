@@ -386,6 +386,22 @@ code {
   font-size: 12px;
 }
 
+.dock-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  margin: 4px 0;
+}
+
+.dock-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
 .path {
   font-family: "Cascadia Mono", Consolas, ui-monospace, monospace;
   font-size: 12.5px;

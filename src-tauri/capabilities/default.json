@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "The main window. Nothing beyond core is granted: every privileged action goes through our own commands, which validate on the Rust side.",
-  "windows": ["main"],
+  "description": "The settings window and the dock. Nothing beyond core is granted: every privileged action goes through our own commands, which validate on the Rust side. The dock has to be listed too — a window missing from here has every invoke denied, silently.",
+  "windows": ["main", "dock"],
   "permissions": ["core:default"]
 }

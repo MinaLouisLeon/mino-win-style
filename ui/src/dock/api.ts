@@ -1,0 +1,43 @@
+/** The dock's half of the bridge. Separate from the settings window's API. */
+
+export interface AppWindow {
+  hwnd: number;
+  title: string;
+  exe: string;
+  minimized: boolean;
+}
+
+export interface DockItem {
+  exe: string;
+  name: string;
+  pinned: boolean;
+  windows: AppWindow[];
+}
+
+export interface DockLayout {
+  work_x: number;
+  work_y: number;
+  work_width: number;
+  work_height: number;
+  icon_size: number;
+}
+
+export interface IconData {
+  width: number;
+  height: number;
+  rgba_base64: string;
+}
+
+const invoke = async <T,>(cmd: string, args?: Record<string, unknown>): Promise<T> => {
+  const { invoke: call } = await import("@tauri-apps/api/core");
+  return call<T>(cmd, args);
+};
+
+export const dockApi = {
+  layout: () => invoke<DockLayout>("dock_layout"),
+  items: () => invoke<DockItem[]>("dock_items"),
+  icon: (exe: string, size: number) => invoke<IconData | null>("dock_icon", { exe, size }),
+  activate: (hwnd: number) => invoke<boolean>("dock_activate", { hwnd }),
+  launch: (target: string) => invoke<boolean>("dock_launch", { target }),
+  place: (width: number, height: number) => invoke<void>("dock_place", { width, height }),
+};

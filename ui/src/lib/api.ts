@@ -113,6 +113,13 @@ export interface PackSummary {
   applicable: boolean;
 }
 
+/** The dock is our own window, not a Windows setting, so it has its own config. */
+export interface DockConfig {
+  enabled: boolean;
+  pinned: string[];
+  icon_size: number;
+}
+
 export interface OsBuild {
   build: number;
   ubr: number;
@@ -133,6 +140,8 @@ export interface Api {
   listPacks(): Promise<PackSummary[]>;
   planPack(dir: string): Promise<Plan>;
   applyPack(dir: string): Promise<ApplyReport>;
+  dockConfig(): Promise<DockConfig>;
+  dockSetEnabled(enabled: boolean): Promise<DockConfig>;
 }
 
 /**
@@ -162,6 +171,8 @@ function tauriApi(): Api {
     listPacks: () => invoke<PackSummary[]>("list_packs"),
     planPack: (dir) => invoke<Plan>("plan_pack", { dir }),
     applyPack: (dir) => invoke<ApplyReport>("apply_pack", { dir }),
+    dockConfig: () => invoke<DockConfig>("dock_config"),
+    dockSetEnabled: (enabled) => invoke<DockConfig>("dock_set_enabled", { enabled }),
   };
 }
 

@@ -43,6 +43,10 @@
   "home.mock": "Demo mode: the Rust core is not running, so these values are simulated.",
   "home.available": "Settings available here",
 
+  "dock.title": "The dock",
+  "dock.body": "A dock of our own, drawn on top of the desktop — Windows has none to restyle. It shows what is running and what you pin, and clicking an icon brings that window forward.",
+  "dock.show": "Show the dock",
+  "dock.note": "Early version: pinned apps are read from dock.json, and there is no drag-to-pin yet.",
   "changes.pending": "{n} unapplied change",
   "changes.pendingPlural": "{n} unapplied changes",
   "changes.review": "Review and apply",

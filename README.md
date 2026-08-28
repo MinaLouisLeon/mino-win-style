@@ -25,10 +25,28 @@ no dock, no menu bar, and no way to restyle its own shell chrome. That is a
 ceiling in the approach, not a gap in the implementation.
 
 Getting past it means doing what Seelen UI does — not restyling the Windows
-shell but **drawing our own on top of it**: a dock, a menu bar and a launcher as
-borderless always-on-top windows of our own, with the native taskbar hidden.
-Tauri already does multi-window, so the foundation holds; it is a new layer
-(`mino-shell`), not a rewrite. It is not built yet.
+shell but **drawing our own on top of it**. That layer is `mino-shell`, and the
+first piece of it exists:
+
+## The dock
+
+A macOS-style dock in a window of our own: transparent, undecorated, always on
+top, out of the taskbar and out of Alt+Tab. It shows pinned apps and whatever is
+running, with a dot under anything with open windows, and magnifies under the
+cursor. Clicking brings that app's window forward, or launches it.
+
+None of it is injection. `mino-shell` enumerates top-level windows
+(`EnumWindows`, minus tool windows, owned windows and the cloaked ghosts Windows
+keeps for suspended Store apps), reads each icon out of its executable with
+`PrivateExtractIconsW`, and calls `SetForegroundWindow` to raise one. All
+documented API, nothing loaded into another process.
+
+Turn it on from the app's Home screen. Settings live in
+`%LOCALAPPDATA%\mino-win-style\dock.json`, which is also where the pinned list
+is kept — there is no drag-to-pin yet.
+
+Still to come: pinning from the dock itself, a menu bar, a launcher, per-monitor
+placement, and replacing the 1.2-second poll with `SetWinEventHook`.
 
 ## Why it is built this way
 
@@ -66,9 +84,16 @@ touches the OS sits behind two traits, faked by `MemoryRegistry` in tests.
 cargo test -p mino-core        # the part that matters; no Windows APIs involved
 cargo clippy --workspace --all-targets -- -D warnings
 pnpm --dir ui install
-pnpm --dir ui build
 cargo tauri dev                # needs: cargo install tauri-cli --version "^2"
+cargo tauri build              # installers, in target/release/bundle
 ```
+
+> **Build the app with `cargo tauri build`, never `cargo build --release`.**
+> A plain cargo build still compiles with `cfg(dev)` set, so the app looks for
+> the frontend at `http://localhost:1420` instead of using the embedded copy.
+> With no Vite server running you get a window showing "localhost refused to
+> connect" — or, for a transparent window like the dock, nothing at all. Both
+> look exactly like a broken feature, and neither is.
 
 `pnpm --dir ui dev` runs the interface on its own in a browser at
 <http://localhost:1420>, backed by the mock in `ui/src/lib/mock.ts`. Useful for

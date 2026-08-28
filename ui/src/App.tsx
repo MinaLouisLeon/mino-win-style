@@ -11,6 +11,7 @@ import {
   inTauri,
   type Category as Cat,
   type JournalEntry,
+  type DockConfig,
   type OsBuild,
   type PackSummary,
   type Plan,
@@ -31,6 +32,7 @@ export default function App() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [journalDir, setJournalDir] = useState("");
   const [packs, setPacks] = useState<PackSummary[]>([]);
+  const [dock, setDock] = useState<DockConfig | null>(null);
   /** Set while a Look is waiting in the confirmation dialog. */
   const [pendingPack, setPendingPack] = useState<string | null>(null);
 
@@ -42,18 +44,20 @@ export default function App() {
   const [message, setMessage] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    const [osInfo, list, history, dir, looks] = await Promise.all([
+    const [osInfo, list, history, dir, looks, dockConfig] = await Promise.all([
       api.osInfo(),
       api.listTweaks(),
       api.history(),
       api.journalDir(),
       api.listPacks(),
+      api.dockConfig(),
     ]);
     setOs(osInfo);
     setTweaks(list);
     setEntries(history);
     setJournalDir(dir);
     setPacks(looks);
+    setDock(dockConfig);
   }, []);
 
   useEffect(() => {
@@ -211,6 +215,14 @@ export default function App() {
             tweaks={tweaks}
             journalDir={journalDir}
             entries={entries}
+            dock={dock}
+            onDockChange={async (enabled) => {
+              try {
+                setDock(await api.dockSetEnabled(enabled));
+              } catch (err) {
+                setMessage(String(err));
+              }
+            }}
             onRevertAll={() => setConfirmRevertAll(true)}
             onOpenCategory={(category) => setView(category)}
           />

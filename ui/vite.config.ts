@@ -17,5 +17,15 @@ export default defineConfig({
   build: {
     target: "chrome110",
     sourcemap: true,
+    rollupOptions: {
+      // Two pages, two windows: the settings window and the dock. They share
+      // nothing but the toolchain, which is why the dock has its own entry
+      // rather than a route inside the main app.
+      // Relative to the Vite root, which keeps Node types out of this file.
+      input: {
+        main: "index.html",
+        dock: "dock.html",
+      },
+    },
   },
 });
