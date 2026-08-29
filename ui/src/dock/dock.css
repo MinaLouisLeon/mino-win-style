@@ -37,6 +37,9 @@ body {
 .dock {
   display: flex;
   align-items: flex-end;
+  /* Grows and slides with the magnification; the window is already sized for
+     the widest it can get, so nothing here reaches Rust. */
+  will-change: transform;
   border-radius: 20px;
   background: rgba(30, 32, 40, 0.42);
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -171,6 +174,8 @@ body {
   text-overflow: ellipsis;
 }
 
+/* The slot is as wide as the icon inside it, magnification included, so the
+   flex row does the work of moving the neighbouring icons out of the way. */
 .slot {
   position: relative;
   display: flex;
@@ -187,6 +192,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Bigger than its slot when magnified, and the slot aligns to flex-end, so
+     the overflow goes upward out of the dock rather than through its floor. */
+  flex: none;
   /* No transition on width/height: the size is driven by the cursor position
      every frame, and easing it turns the magnification to treacle. */
   transition: none;
@@ -236,9 +244,10 @@ body {
   }
 }
 
+/* `bottom` is set from the icon's current size: it has to clear a magnified
+   icon, which stands well above the slot the label is positioned against. */
 .label {
   position: absolute;
-  bottom: calc(100% + 14px);
   left: 50%;
   transform: translateX(-50%);
   padding: 4px 10px;
