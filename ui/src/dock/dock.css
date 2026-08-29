@@ -265,3 +265,86 @@ body {
     transition: none;
   }
 }
+
+/* ---------------- JARVIS ----------------
+ *
+ * The dock in JARVIS mode: the frosted macOS panel becomes an instrument
+ * housing. Same geometry, same magnification — only the surface changes, so
+ * none of the layout maths in Dock.tsx knows this exists.
+ *
+ * The dock window has its own page and so its own `:root`; Rust broadcasts the
+ * mode and `lib/jarvis.ts` sets the attribute here exactly as it does in the
+ * settings window.
+ */
+
+:root[data-theme="jarvis"] .dock {
+  border-radius: 3px;
+  background: linear-gradient(
+    to bottom,
+    rgba(10, 32, 46, 0.55),
+    rgba(3, 14, 22, 0.72)
+  );
+  border: 1px solid rgba(111, 227, 255, 0.42);
+  box-shadow:
+    0 0 22px rgba(111, 227, 255, 0.22),
+    0 14px 44px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(111, 227, 255, 0.22);
+  backdrop-filter: blur(18px) saturate(130%);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+}
+
+/* Brackets at the ends, the same ornament the settings panels wear. Drawn on
+   the panel's own pseudo-elements so nothing is added to the DOM the
+   magnification measures. */
+:root[data-theme="jarvis"] .dock::before,
+:root[data-theme="jarvis"] .dock::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 12px;
+  border-block: 2px solid #6fe3ff;
+  filter: drop-shadow(0 0 8px rgba(111, 227, 255, 0.5));
+  pointer-events: none;
+}
+
+:root[data-theme="jarvis"] .dock::before {
+  left: -1px;
+  border-left: 2px solid #6fe3ff;
+}
+
+:root[data-theme="jarvis"] .dock::after {
+  right: -1px;
+  border-right: 2px solid #6fe3ff;
+}
+
+/* The panel is the positioning context for those brackets; without this they
+   would hang off the stage instead. */
+:root[data-theme="jarvis"] .dock {
+  position: relative;
+}
+
+/* A light-scheme dock is still a dark instrument in JARVIS mode: the override
+   above would otherwise be undone by the media query further up this file. */
+@media (prefers-color-scheme: light) {
+  :root[data-theme="jarvis"] .dock {
+    background: linear-gradient(
+      to bottom,
+      rgba(10, 32, 46, 0.55),
+      rgba(3, 14, 22, 0.72)
+    );
+    border-color: rgba(111, 227, 255, 0.42);
+    box-shadow:
+      0 0 22px rgba(111, 227, 255, 0.22),
+      0 14px 44px rgba(0, 0, 0, 0.6),
+      inset 0 1px 0 rgba(111, 227, 255, 0.22);
+  }
+}
+
+:root[data-theme="jarvis"] .menu {
+  border-radius: 3px;
+  background: rgba(5, 18, 28, 0.92);
+  border-color: rgba(111, 227, 255, 0.4);
+  box-shadow: 0 0 20px rgba(111, 227, 255, 0.16), 0 16px 44px rgba(0, 0, 0, 0.7);
+  font-family: "Cascadia Mono", Consolas, ui-monospace, monospace;
+}

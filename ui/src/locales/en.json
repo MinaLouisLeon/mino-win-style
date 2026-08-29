@@ -1,29 +1,23 @@
 {
   "app.name": "Mino Win Style",
   "app.tagline": "Change how Windows looks — and put it back.",
-
   "nav.home": "Home",
   "nav.appearance": "Appearance",
   "nav.taskbar": "Taskbar",
   "nav.start": "Start menu",
   "nav.explorer": "File Explorer",
   "nav.history": "History",
-
   "lang.switch": "العربية",
-
   "common.on": "on",
   "common.off": "off",
-
   "nav.looks": "Looks",
   "nav.desktop": "Desktop",
-
   "looks.subtitle": "A whole desktop in one step. It still shows you every change before anything happens.",
   "looks.none": "No Looks found next to the app.",
   "looks.apply": "Apply this Look",
   "looks.unsupported": "Not for this build",
   "looks.settings": "{n} settings",
   "looks.revertNote": "Applying a Look is one entry in the history, so a single Revert undoes the whole thing.",
-
   "tweak.desktop.wallpaper.name": "Wallpaper",
   "tweak.desktop.wallpaper.desc": "Set by a Look for now; picking your own file comes with the file dialog.",
   "tweak.desktop.wallpaper_fit.name": "How it fits the screen",
@@ -42,7 +36,6 @@
   "home.revertAllHint": "Undoes every change this app has ever made, newest first.",
   "home.mock": "Demo mode: the Rust core is not running, so these values are simulated.",
   "home.available": "Settings available here",
-
   "dock.title": "The dock",
   "dock.body": "A dock of our own, drawn on top of the desktop — Windows has none to restyle. It shows what is running and what you pin, and clicking an icon brings that window forward.",
   "dock.show": "Show the dock",
@@ -51,7 +44,6 @@
   "changes.pendingPlural": "{n} unapplied changes",
   "changes.review": "Review and apply",
   "changes.discard": "Discard",
-
   "plan.title": "These changes will be made",
   "plan.none": "Nothing to change — this is already how things are.",
   "plan.skipped": "Skipped",
@@ -61,12 +53,10 @@
   "plan.apply": "Apply",
   "plan.cancel": "Cancel",
   "plan.applying": "Applying…",
-
   "restart.title": "Restart File Explorer?",
   "restart.body": "Your desktop and taskbar will flash for a second. Open windows are not affected.",
   "restart.yes": "Restart Explorer",
   "restart.later": "Not now",
-
   "history.title": "What this app has done",
   "history.empty": "Nothing yet. Once you apply something it shows up here, with a way back.",
   "history.revert": "Revert",
@@ -77,11 +67,9 @@
   "history.status.rolled_back": "Rolled back",
   "history.status.reverted": "Reverted",
   "history.safeRestore": "If this app ever will not start, run: mino safe-restore",
-
   "tier.b": "Undocumented setting — a Windows update could change or ignore it.",
   "support.unsupported": "Not available on this Windows build",
   "error.read": "Could not read this setting",
-
   "tweak.appearance.dark_mode.name": "Dark mode",
   "tweak.appearance.dark_mode.desc": "Applies to apps and to the Windows shell together.",
   "tweak.appearance.accent_color.name": "Accent colour",
@@ -89,7 +77,6 @@
   "tweak.appearance.transparency.name": "Transparency effects",
   "tweak.appearance.accent_on_titlebars.name": "Accent colour on title bars",
   "tweak.appearance.accent_on_start_taskbar.name": "Accent colour on Start and the taskbar",
-
   "tweak.taskbar.alignment.name": "Taskbar alignment",
   "tweak.taskbar.alignment.choice.left": "Left",
   "tweak.taskbar.alignment.choice.center": "Centre",
@@ -106,14 +93,12 @@
   "tweak.taskbar.icon_size.choice.large": "Large",
   "tweak.taskbar.seconds_in_clock.name": "Seconds in the clock",
   "tweak.taskbar.end_task.name": "End task in the right-click menu",
-
   "tweak.start.layout.name": "Start menu layout",
   "tweak.start.layout.choice.default": "Default",
   "tweak.start.layout.choice.more_pins": "More pins",
   "tweak.start.layout.choice.more_recommendations": "More recommendations",
   "tweak.start.recently_added_apps.name": "Show recently added apps",
   "tweak.start.recommended_files.name": "Show recommended files",
-
   "tweak.explorer.show_file_extensions.name": "Show file extensions",
   "tweak.explorer.show_hidden_files.name": "Show hidden files",
   "tweak.explorer.show_protected_os_files.name": "Show protected system files",
@@ -123,5 +108,36 @@
   "tweak.explorer.launch_to.choice.downloads": "Downloads",
   "tweak.explorer.compact_view.name": "Compact view",
   "tweak.explorer.classic_context_menu.name": "Classic right-click menu",
-  "tweak.explorer.classic_context_menu.desc": "Skips “Show more options”. File Explorer restarts to apply this."
+  "tweak.explorer.classic_context_menu.desc": "Skips “Show more options”. File Explorer restarts to apply this.",
+  "jarvis.title": "JARVIS mode",
+  "jarvis.body": "A heads-up display over the desktop, and the same skin on this window and the dock. The overlay is click-through: it sits above everything and blocks nothing.",
+  "jarvis.show": "Turn JARVIS mode on",
+  "jarvis.lookNote": "The overlay and the skin are ours and change nothing on the machine. The JARVIS Look — accent, wallpaper, taskbar — is offered separately and goes through the usual confirmation, so you can have one without the other.",
+  "jarvis.sound": "Voice and interface sounds",
+  "jarvis.soundNote": "Spoken with the voice Windows already has, and the blips are generated as they play. Nothing is downloaded, and nothing is sent anywhere.",
+  "jarvis.telemetry": "Live readouts",
+  "jarvis.telemetryNote": "Processor, memory, disk, network and battery, read once a second. Turning this off leaves the clock and the reactor and stops the polling.",
+  "jarvis.address": "What it should call you",
+  "jarvis.addressPlaceholder": "Sir",
+  "jarvis.addressNote": "Used in the greeting, spoken and shown. Leave it empty and it just says the time of day.",
+  "jarvis.farewell": "Powering down. Goodbye.",
+  "hud.subtitle": "Mino shell interface",
+  "hud.boot.core": "Initialising Mino core",
+  "hud.boot.shell": "Linking shell layer",
+  "hud.boot.registry": "Reading system state",
+  "hud.boot.telemetry": "Calibrating telemetry",
+  "hud.boot.online": "JARVIS online",
+  "hud.boot.ok": "OK",
+  "hud.greeting.morning": "Good morning",
+  "hud.greeting.afternoon": "Good afternoon",
+  "hud.greeting.evening": "Good evening",
+  "hud.address": ", {name}",
+  "hud.nominal": "All systems nominal.",
+  "hud.cpu": "CPU",
+  "hud.memory": "Memory",
+  "hud.disk": "Disk",
+  "hud.network": "Net",
+  "hud.power": "Power",
+  "hud.charging": "Charging",
+  "hud.uptime": "Uptime"
 }

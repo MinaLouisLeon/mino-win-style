@@ -370,6 +370,16 @@ code {
   background: linear-gradient(150deg, #05070f 0%, #0f2f5c 60%, #0f62c0 100%);
 }
 
+/* The arc reactor, small enough to be a swatch: the same rings the wallpaper
+   draws, in two gradients. */
+.look__swatch--jarvis {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(150, 226, 250, 0.95) 6%, transparent 9%),
+    radial-gradient(circle at 50% 50%, transparent 17%, rgba(130, 212, 244, 0.8) 19%, transparent 21%),
+    radial-gradient(circle at 50% 50%, transparent 30%, rgba(104, 190, 226, 0.55) 32%, transparent 34%),
+    radial-gradient(circle at 50% 50%, #0b3550 0%, #03080e 70%);
+}
+
 .look__body h2 {
   margin: 0 0 2px;
 }
@@ -537,6 +547,45 @@ select {
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* A labelled text field. The only one in the app so far — the greeting's name
+   — so it is deliberately plain rather than a system of its own. */
+.field {
+  display: block;
+  margin-block: 14px 4px;
+  max-width: 320px;
+}
+
+.field span {
+  display: block;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  margin-block-end: 5px;
+}
+
+.input {
+  width: 100%;
+  font: inherit;
+  color: var(--ink);
+  background: var(--layer-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  padding: 7px 10px;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+/* The preferences that appear under the JARVIS switch once it is on. The rule
+   just separates them from the switch above; the panel does the rest. */
+.jarvis-options {
+  margin-block-start: 14px;
+  padding-block-start: 14px;
+  border-block-start: 1px solid var(--line);
 }
 
 /* ---------------- pending bar ---------------- */
@@ -737,5 +786,222 @@ select {
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
+  }
+}
+
+/* ---------------- JARVIS ----------------
+ *
+ * A second palette, not a second stylesheet. Everything above reads its colours
+ * from the variables in `:root`, so the skin is mostly a matter of redefining
+ * them — which is what makes turning the mode off restore the Fluent look
+ * exactly, with nothing to undo.
+ *
+ * What follows the palette is the part that is genuinely different rather than
+ * differently coloured: monospace readout type, hairline borders that glow, and
+ * corner brackets on the panels. Those are additive, so they disappear with the
+ * attribute.
+ *
+ * `--accent` is deliberately *not* set here. The app wears the system accent
+ * (see App.tsx), and in JARVIS mode the JARVIS Look has usually just set that
+ * accent to the same cyan — so the app matches the desktop rather than
+ * overriding it, and someone who declines the Look still gets the skin.
+ */
+
+:root[data-theme="jarvis"] {
+  --bg: #03080e;
+  --layer: rgba(8, 22, 34, 0.72);
+  --layer-2: rgba(16, 40, 58, 0.55);
+  --ink: #eaf9ff;
+  --ink-2: #a8dcef;
+  --muted: #5f93a8;
+  --line: rgba(111, 227, 255, 0.18);
+  --line-2: rgba(111, 227, 255, 0.36);
+
+  --warn: #ffb14e;
+  --warn-bg: rgba(120, 66, 8, 0.28);
+  --error: #ff6b6b;
+  --error-bg: rgba(120, 20, 20, 0.3);
+
+  --radius: 2px;
+  --radius-lg: 3px;
+  --shadow: 0 0 0 1px rgba(111, 227, 255, 0.08), 0 18px 46px -26px rgba(0, 0, 0, 0.95);
+
+  --j-line: #6fe3ff;
+  --j-glow: 0 0 10px rgba(111, 227, 255, 0.4);
+  --j-mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+}
+
+/* The desktop showing through is the point, so the page itself is a dark field
+   with the grid over it rather than a flat fill. */
+:root[data-theme="jarvis"] body {
+  background:
+    repeating-linear-gradient(to right, rgba(111, 227, 255, 0.05) 0 1px, transparent 1px 56px),
+    repeating-linear-gradient(to bottom, rgba(111, 227, 255, 0.05) 0 1px, transparent 1px 56px),
+    radial-gradient(ellipse 90% 70% at 50% 0%, #0a2233 0%, #03080e 62%);
+  font-family: var(--j-mono);
+  letter-spacing: 0.03em;
+}
+
+:root[data-theme="jarvis"] h1,
+:root[data-theme="jarvis"] h2,
+:root[data-theme="jarvis"] .card__label,
+:root[data-theme="jarvis"] .nav__item,
+:root[data-theme="jarvis"] .btn,
+:root[data-theme="jarvis"] .badge {
+  font-family: var(--j-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+
+:root[data-theme="jarvis"] h1 {
+  font-size: 21px;
+  color: var(--j-line);
+  text-shadow: var(--j-glow);
+}
+
+/* Panels and cards get a bracket at the top corner: the one ornament that says
+   "instrument" rather than "settings page", and it is a pseudo-element, so it
+   costs a single box per panel. */
+:root[data-theme="jarvis"] .panel,
+:root[data-theme="jarvis"] .card,
+:root[data-theme="jarvis"] .look,
+:root[data-theme="jarvis"] .dialog {
+  position: relative;
+  border-color: var(--line);
+  background: var(--layer);
+  backdrop-filter: blur(2px);
+}
+
+:root[data-theme="jarvis"] .panel::before,
+:root[data-theme="jarvis"] .card::before,
+:root[data-theme="jarvis"] .look::before,
+:root[data-theme="jarvis"] .dialog::before {
+  content: "";
+  position: absolute;
+  inset-block-start: -1px;
+  inset-inline-start: -1px;
+  width: 14px;
+  height: 14px;
+  border-block-start: 2px solid var(--j-line);
+  border-inline-start: 2px solid var(--j-line);
+  filter: drop-shadow(var(--j-glow));
+  pointer-events: none;
+}
+
+:root[data-theme="jarvis"] .nav {
+  background: rgba(4, 14, 22, 0.7);
+  border-inline-end-color: var(--line-2);
+}
+
+:root[data-theme="jarvis"] .brand__mark {
+  border-radius: 50%;
+  /* The arc reactor, in miniature, as the app's mark. */
+  background: radial-gradient(circle, #d6f7ff 18%, rgba(111, 227, 255, 0.5) 34%, transparent 62%);
+  border: 1px solid var(--j-line);
+  box-shadow: var(--j-glow);
+}
+
+:root[data-theme="jarvis"] .nav__item--on {
+  /* `linear-gradient` has no logical directions, so the mirrored version is
+     spelled out below rather than got for free from `inset-inline`. */
+  background: linear-gradient(to right, rgba(111, 227, 255, 0.16), transparent);
+  color: var(--j-line);
+  text-shadow: var(--j-glow);
+}
+
+:root[data-theme="jarvis"][dir="rtl"] .nav__item--on {
+  background: linear-gradient(to left, rgba(111, 227, 255, 0.16), transparent);
+}
+
+:root[data-theme="jarvis"] .btn {
+  border-color: var(--line-2);
+  background: rgba(10, 30, 44, 0.6);
+  color: var(--ink-2);
+}
+
+:root[data-theme="jarvis"] .btn:hover:not(:disabled) {
+  border-color: var(--j-line);
+  color: var(--j-line);
+  box-shadow: var(--j-glow);
+}
+
+:root[data-theme="jarvis"] .btn--primary {
+  background: rgba(111, 227, 255, 0.16);
+  border-color: var(--j-line);
+  color: #eaf9ff;
+  text-shadow: var(--j-glow);
+}
+
+/* The checkboxes are native controls, and a native checkbox in JARVIS mode was
+   still ticking itself Windows blue. `accent-color` is the whole fix. */
+:root[data-theme="jarvis"] input[type="checkbox"],
+:root[data-theme="jarvis"] input[type="radio"] {
+  accent-color: var(--j-line);
+}
+
+:root[data-theme="jarvis"] .switch__track {
+  border-radius: 2px;
+}
+
+:root[data-theme="jarvis"] .switch__thumb {
+  border-radius: 1px;
+}
+
+:root[data-theme="jarvis"] .switch input:checked + .switch__track {
+  box-shadow: var(--j-glow);
+}
+
+:root[data-theme="jarvis"] code,
+:root[data-theme="jarvis"] .path {
+  color: var(--j-line);
+}
+
+/* The pending-changes bar reads as the alert it is. */
+:root[data-theme="jarvis"] .bar {
+  background: rgba(6, 20, 30, 0.92);
+  border-block-start: 1px solid var(--line-2);
+  box-shadow: 0 -1px 24px rgba(111, 227, 255, 0.12);
+}
+
+:root[data-theme="jarvis"] .scrim {
+  background: rgba(1, 8, 14, 0.72);
+}
+
+/* The one animated thing in the settings window: a scan line down the sidebar,
+   slow enough to be atmosphere rather than movement in the corner of the eye. */
+:root[data-theme="jarvis"] .nav::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 120px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(111, 227, 255, 0.07),
+    transparent
+  );
+  animation: jarvis-scan 7s linear infinite;
+  pointer-events: none;
+}
+
+:root[data-theme="jarvis"] .nav {
+  position: relative;
+  overflow: hidden;
+}
+
+@keyframes jarvis-scan {
+  from {
+    transform: translateY(-120px);
+  }
+  to {
+    transform: translateY(100vh);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="jarvis"] .nav::after {
+    animation: none;
+    opacity: 0;
   }
 }

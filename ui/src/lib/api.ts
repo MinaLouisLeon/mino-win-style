@@ -8,6 +8,9 @@
  */
 
 import { mockApi } from "./mock";
+import type { JarvisConfig, Telemetry } from "./jarvis";
+
+export type { JarvisConfig, Telemetry } from "./jarvis";
 
 export type Category = "appearance" | "desktop" | "taskbar" | "start" | "explorer";
 export type Tier = "a" | "b" | "c";
@@ -142,6 +145,15 @@ export interface Api {
   applyPack(dir: string): Promise<ApplyReport>;
   dockConfig(): Promise<DockConfig>;
   dockSetEnabled(enabled: boolean): Promise<DockConfig>;
+  jarvisConfig(): Promise<JarvisConfig>;
+  jarvisSetEnabled(enabled: boolean): Promise<JarvisConfig>;
+  /** Any subset; anything left out keeps the value it has. */
+  jarvisSetOptions(options: {
+    sound?: boolean;
+    telemetry?: boolean;
+    address?: string;
+  }): Promise<JarvisConfig>;
+  jarvisTelemetry(): Promise<Telemetry>;
 }
 
 /**
@@ -173,6 +185,10 @@ function tauriApi(): Api {
     applyPack: (dir) => invoke<ApplyReport>("apply_pack", { dir }),
     dockConfig: () => invoke<DockConfig>("dock_config"),
     dockSetEnabled: (enabled) => invoke<DockConfig>("dock_set_enabled", { enabled }),
+    jarvisConfig: () => invoke<JarvisConfig>("jarvis_config"),
+    jarvisSetEnabled: (enabled) => invoke<JarvisConfig>("jarvis_set_enabled", { enabled }),
+    jarvisSetOptions: (options) => invoke<JarvisConfig>("jarvis_set_options", options),
+    jarvisTelemetry: () => invoke<Telemetry>("jarvis_telemetry"),
   };
 }
 

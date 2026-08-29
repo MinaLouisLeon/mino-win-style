@@ -6,6 +6,7 @@
  * when the two disagree the Rust side is right.
  */
 
+import { JARVIS_DEFAULTS, type JarvisConfig, type Telemetry } from "./jarvis";
 import type {
   Api,
   ApplyReport,
@@ -137,6 +138,7 @@ const defs: Def[] = [
 const current = new Map<string, Value>(defs.map((d) => [d.id, d.value]));
 const entries: JournalEntry[] = [];
 let mockDockEnabled = false;
+let mockJarvis: JarvisConfig = { ...JARVIS_DEFAULTS };
 
 const wait = <T,>(value: T): Promise<T> =>
   new Promise((resolve) => setTimeout(() => resolve(value), 120));
@@ -311,6 +313,30 @@ export const mockApi: Api = {
     mockDockEnabled = enabled;
     return wait({ enabled, pinned: [], icon_size: 48 });
   },
+
+  // JARVIS mode in a browser tab is the skin and nothing else: there is no
+  // second window to put a HUD in, and no machine to read.
+  jarvisConfig: () => wait({ ...mockJarvis }),
+  jarvisSetEnabled: (enabled) => {
+    mockJarvis = { ...mockJarvis, enabled };
+    return wait({ ...mockJarvis });
+  },
+  jarvisSetOptions: (options) => {
+    mockJarvis = { ...mockJarvis, ...options };
+    return wait({ ...mockJarvis });
+  },
+  jarvisTelemetry: () =>
+    wait<Telemetry>({
+      cpu_percent: 34,
+      memory_used_bytes: 10 * 1024 ** 3,
+      memory_total_bytes: 16 * 1024 ** 3,
+      disk_used_bytes: 251 * 1024 ** 3,
+      disk_total_bytes: 476 * 1024 ** 3,
+      net_down_bps: 1.2 * 1024 ** 2,
+      net_up_bps: 340 * 1024,
+      uptime_seconds: 211_620,
+      battery: { percent: 86, charging: true },
+    }),
 
   applyPack: (dir) => mockApi.applyChanges(`Look: ${dir}`, {
     "appearance.dark_mode": true,

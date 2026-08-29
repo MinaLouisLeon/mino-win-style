@@ -329,6 +329,19 @@ pub fn launch(target: &str) -> bool {
 /// The primary monitor's work area — the screen minus the taskbar, so the dock
 /// sits above a visible taskbar and at the bottom of the screen when it hides.
 pub fn work_area() -> WorkArea {
+    monitor_rect(false)
+}
+
+/// The primary monitor in full, taskbar included.
+///
+/// The HUD wants this rather than the work area: it is click-through, so
+/// covering the taskbar costs nothing and stopping short of it would leave a
+/// bright strip where the overlay's frame is cut off.
+pub fn screen_area() -> WorkArea {
+    monitor_rect(true)
+}
+
+fn monitor_rect(whole: bool) -> WorkArea {
     unsafe {
         let monitor = MonitorFromPoint(POINT { x: 0, y: 0 }, MONITOR_DEFAULTTOPRIMARY);
         let mut info = MONITORINFO {
@@ -341,7 +354,7 @@ pub fn work_area() -> WorkArea {
                 top,
                 right,
                 bottom,
-            } = info.rcWork;
+            } = if whole { info.rcMonitor } else { info.rcWork };
             WorkArea {
                 x: left,
                 y: top,

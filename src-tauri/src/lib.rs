@@ -1,5 +1,6 @@
 pub mod commands;
 pub mod dock;
+pub mod jarvis;
 pub mod packs;
 pub mod state;
 
@@ -24,6 +25,9 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(app_state)
+        // The HUD's processor and network figures are rates, so the sampler has
+        // to remember the previous reading between calls. One per process.
+        .manage(mino_shell::Sampler::new())
         .invoke_handler(tauri::generate_handler![
             commands::os_info,
             commands::list_tweaks,
@@ -51,6 +55,10 @@ pub fn run() {
             dock::dock_close,
             dock::dock_pin,
             dock::dock_unpin,
+            jarvis::jarvis_config,
+            jarvis::jarvis_set_enabled,
+            jarvis::jarvis_set_options,
+            jarvis::jarvis_telemetry,
         ])
         .setup(|app| {
             // The window is built here, on the main thread, whether or not the
@@ -65,6 +73,18 @@ pub fn run() {
             if config.enabled {
                 if let Err(err) = dock::show(&handle) {
                     dock::trace(&format!("show() failed: {err}"));
+                }
+            }
+
+            // Same story for the HUD, and for the same reason: it is built here
+            // on the main thread whether or not JARVIS mode is on.
+            let jarvis = jarvis::JarvisConfig::load();
+            if let Err(err) = jarvis::create(&handle) {
+                dock::trace(&format!("jarvis create() failed: {err}"));
+            }
+            if jarvis.enabled {
+                if let Err(err) = jarvis::show(&handle) {
+                    dock::trace(&format!("jarvis show() failed: {err}"));
                 }
             }
             Ok(())
