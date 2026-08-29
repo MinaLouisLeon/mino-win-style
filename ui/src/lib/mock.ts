@@ -6,7 +6,7 @@
  * when the two disagree the Rust side is right.
  */
 
-import { JARVIS_DEFAULTS, type JarvisConfig, type Telemetry } from "./jarvis";
+import { SHELL_DEFAULTS, type LookId, type LookInfo, type ShellConfig, type Telemetry } from "./shell-look";
 import type {
   Api,
   ApplyReport,
@@ -138,7 +138,13 @@ const defs: Def[] = [
 const current = new Map<string, Value>(defs.map((d) => [d.id, d.value]));
 const entries: JournalEntry[] = [];
 let mockDockEnabled = false;
-let mockJarvis: JarvisConfig = { ...JARVIS_DEFAULTS };
+let mockShell: ShellConfig = { ...SHELL_DEFAULTS };
+
+/** The registry, as Rust would have sent it. Kept in step with `LOOKS` in
+ *  `src-tauri/src/shell_look.rs` by hand, like the tweak list above. */
+const mockLooks: LookInfo[] = [
+  { id: "jarvis", theme: "jarvis", surfaces: ["overlay"], pack_id: "com.mino.jarvis" },
+];
 
 const wait = <T,>(value: T): Promise<T> =>
   new Promise((resolve) => setTimeout(() => resolve(value), 120));
@@ -272,6 +278,21 @@ export const mockApi: Api = {
 
   listPacks: () =>
     wait([
+      // The pack the JARVIS Look offers. Here so the offer — the confirmation
+      // screen a Look opens when it is put on — can be walked through in a
+      // browser tab, which is where the flow gets laid out.
+      {
+        id: "com.mino.jarvis",
+        dir: "C:\packs\jarvis",
+        name: { en: "JARVIS", ar: "جارفِس" },
+        description: {
+          en: "The desktop the HUD is drawn on: black, arc-reactor cyan, and a taskbar that gets out of the way.",
+          ar: "سطح المكتب الذي تُرسم عليه شاشة المعلومات: أسود، وسماوي المفاعل القوسي، وشريط مهام ينزوي.",
+        },
+        author: "mino-win-style",
+        settings: 20,
+        applicable: true,
+      },
       {
         id: "com.mino.macos",
         dir: "C:\\packs\\macos",
@@ -314,18 +335,19 @@ export const mockApi: Api = {
     return wait({ enabled, pinned: [], icon_size: 48 });
   },
 
-  // JARVIS mode in a browser tab is the skin and nothing else: there is no
-  // second window to put a HUD in, and no machine to read.
-  jarvisConfig: () => wait({ ...mockJarvis }),
-  jarvisSetEnabled: (enabled) => {
-    mockJarvis = { ...mockJarvis, enabled };
-    return wait({ ...mockJarvis });
+  // A Look in a browser tab is the skin and nothing else: there is no second
+  // window to put an overlay in, and no machine to read.
+  shellConfig: () => wait({ ...mockShell }),
+  shellLooks: () => wait(mockLooks.map((look) => ({ ...look }))),
+  shellSetLook: (id: LookId | null) => {
+    mockShell = { ...mockShell, active: id };
+    return wait({ ...mockShell });
   },
-  jarvisSetOptions: (options) => {
-    mockJarvis = { ...mockJarvis, ...options };
-    return wait({ ...mockJarvis });
+  shellSetOptions: (options) => {
+    mockShell = { ...mockShell, ...options };
+    return wait({ ...mockShell });
   },
-  jarvisTelemetry: () =>
+  shellTelemetry: () =>
     wait<Telemetry>({
       cpu_percent: 34,
       memory_used_bytes: 10 * 1024 ** 3,

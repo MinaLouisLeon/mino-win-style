@@ -1,12 +1,14 @@
 import type {
   Category as Cat,
   DockConfig,
-  JarvisConfig,
   JournalEntry,
+  LookId,
+  LookInfo,
   OsBuild,
+  ShellConfig,
   TweakState,
 } from "../lib/api";
-import { JarvisPanel } from "../components/JarvisPanel";
+import { LookPanel } from "../components/LookPanel";
 import { useI18n } from "../i18n";
 
 interface Props {
@@ -16,9 +18,10 @@ interface Props {
   journalDir: string;
   dock: DockConfig | null;
   onDockChange: (enabled: boolean) => void;
-  jarvis: JarvisConfig | null;
-  onJarvisChange: (enabled: boolean) => void;
-  onJarvisOptions: (options: { sound?: boolean; telemetry?: boolean; address?: string }) => void;
+  shell: ShellConfig | null;
+  looks: LookInfo[];
+  onLookChange: (id: LookId | null) => void;
+  onLookOptions: (options: { sound?: boolean; telemetry?: boolean; address?: string }) => void;
   onRevertAll: () => void;
   onOpenCategory: (category: Cat) => void;
 }
@@ -32,9 +35,10 @@ export function Home({
   journalDir,
   dock,
   onDockChange,
-  jarvis,
-  onJarvisChange,
-  onJarvisOptions,
+  shell,
+  looks,
+  onLookChange,
+  onLookOptions,
   onRevertAll,
   onOpenCategory,
 }: Props) {
@@ -105,10 +109,11 @@ export function Home({
         })}
       </section>
 
-      <JarvisPanel
-        config={jarvis}
-        onEnabledChange={onJarvisChange}
-        onOptionsChange={onJarvisOptions}
+      <LookPanel
+        config={shell}
+        looks={looks}
+        onLookChange={onLookChange}
+        onOptionsChange={onLookOptions}
       />
 
       <section className="panel">

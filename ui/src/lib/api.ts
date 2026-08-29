@@ -8,9 +8,9 @@
  */
 
 import { mockApi } from "./mock";
-import type { JarvisConfig, Telemetry } from "./jarvis";
+import type { LookId, LookInfo, ShellConfig, Telemetry } from "./shell-look";
 
-export type { JarvisConfig, Telemetry } from "./jarvis";
+export type { LookId, LookInfo, ShellConfig, Telemetry } from "./shell-look";
 
 export type Category = "appearance" | "desktop" | "taskbar" | "start" | "explorer";
 export type Tier = "a" | "b" | "c";
@@ -145,15 +145,18 @@ export interface Api {
   applyPack(dir: string): Promise<ApplyReport>;
   dockConfig(): Promise<DockConfig>;
   dockSetEnabled(enabled: boolean): Promise<DockConfig>;
-  jarvisConfig(): Promise<JarvisConfig>;
-  jarvisSetEnabled(enabled: boolean): Promise<JarvisConfig>;
+  shellConfig(): Promise<ShellConfig>;
+  /** The registry: every Look this build has. The UI keeps no copy of it. */
+  shellLooks(): Promise<LookInfo[]>;
+  /** Wears a Look, or takes the current one off with `null`. */
+  shellSetLook(id: LookId | null): Promise<ShellConfig>;
   /** Any subset; anything left out keeps the value it has. */
-  jarvisSetOptions(options: {
+  shellSetOptions(options: {
     sound?: boolean;
     telemetry?: boolean;
     address?: string;
-  }): Promise<JarvisConfig>;
-  jarvisTelemetry(): Promise<Telemetry>;
+  }): Promise<ShellConfig>;
+  shellTelemetry(): Promise<Telemetry>;
 }
 
 /**
@@ -185,10 +188,11 @@ function tauriApi(): Api {
     applyPack: (dir) => invoke<ApplyReport>("apply_pack", { dir }),
     dockConfig: () => invoke<DockConfig>("dock_config"),
     dockSetEnabled: (enabled) => invoke<DockConfig>("dock_set_enabled", { enabled }),
-    jarvisConfig: () => invoke<JarvisConfig>("jarvis_config"),
-    jarvisSetEnabled: (enabled) => invoke<JarvisConfig>("jarvis_set_enabled", { enabled }),
-    jarvisSetOptions: (options) => invoke<JarvisConfig>("jarvis_set_options", options),
-    jarvisTelemetry: () => invoke<Telemetry>("jarvis_telemetry"),
+    shellConfig: () => invoke<ShellConfig>("shell_config"),
+    shellLooks: () => invoke<LookInfo[]>("shell_looks"),
+    shellSetLook: (id) => invoke<ShellConfig>("shell_set_look", { id }),
+    shellSetOptions: (options) => invoke<ShellConfig>("shell_set_options", options),
+    shellTelemetry: () => invoke<Telemetry>("shell_telemetry"),
   };
 }
 

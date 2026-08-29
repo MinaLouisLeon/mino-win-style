@@ -1,13 +1,13 @@
 /**
  * The HUD's own narrow bridge.
  *
- * It needs three things and nothing else: the mode's settings, a reading of the
- * machine, and to be told when to boot and when to power down. Keeping it
+ * It needs three things and nothing else: which Look is worn and how, a reading
+ * of the machine, and to be told when to boot and when to power down. Keeping it
  * separate from `lib/api` is the same call the dock made — an overlay has no
  * business being able to reach the registry.
  */
 
-import { JARVIS_DEFAULTS, type JarvisConfig, type Telemetry } from "../lib/jarvis";
+import { SHELL_DEFAULTS, type ShellConfig, type Telemetry } from "../lib/shell-look";
 
 const inTauri = "__TAURI_INTERNALS__" in window;
 
@@ -39,18 +39,18 @@ async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T
 }
 
 export const hudApi = {
-  // `enabled` is forced on outside the app. In the app the HUD draws nothing
-  // until the mode is switched on, which is what keeps the window that exists
-  // from startup from animating for a mode nobody asked for — but someone who
-  // has opened `hud.html` in a browser has asked for it by opening it, and a
-  // blank page would be a strange answer.
-  config: (): Promise<JarvisConfig> =>
+  // A Look is forced on outside the app. In the app the overlay draws nothing
+  // until one is worn, which is what keeps the window that exists from startup
+  // from animating for a Look nobody asked for — but someone who has opened
+  // `hud.html` in a browser has asked for it by opening it, and a blank page
+  // would be a strange answer.
+  config: (): Promise<ShellConfig> =>
     inTauri
-      ? invoke<JarvisConfig>("jarvis_config")
-      : Promise.resolve({ ...JARVIS_DEFAULTS, enabled: true }),
+      ? invoke<ShellConfig>("shell_config")
+      : Promise.resolve({ ...SHELL_DEFAULTS, active: "jarvis" }),
 
   telemetry: (): Promise<Telemetry> =>
-    inTauri ? invoke<Telemetry>("jarvis_telemetry") : Promise.resolve(pretend()),
+    inTauri ? invoke<Telemetry>("shell_telemetry") : Promise.resolve(pretend()),
 };
 
 /**

@@ -580,8 +580,18 @@ select {
   border-color: var(--accent);
 }
 
-/* The preferences that appear under the JARVIS switch once it is on. The rule
-   just separates them from the switch above; the panel does the rest. */
+/* The Look picker. A column of radios rather than a grid of cards: there is
+   one Look at a time, and the list is short enough that reading it downwards is
+   quicker than looking around it. */
+.looks-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-block: 10px;
+}
+
+/* The preferences that appear under the picker once a Look is worn. The rule
+   just separates them from the picker above; the panel does the rest. */
 .jarvis-options {
   margin-block-start: 14px;
   padding-block-start: 14px;

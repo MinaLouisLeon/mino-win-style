@@ -167,3 +167,28 @@ registry.
 `cargo test --workspace` and `pnpm --dir ui build` are green, the JARVIS desktop
 behaves exactly as it did before the refactor with the old config file in place,
 and `LOOKS` has one entry.
+
+## What shipped, where it differs from the above
+
+Four decisions were made while building it, all in the same direction: do not
+write a Look's worth of machinery before the Look that needs it exists.
+
+- **`LookId` has one variant, not five.** A variant with no `LOOKS` entry would
+  be selectable with no CSS behind it, so each phase adds its own — and
+  `every_look_has_one_entry_and_answers_to_one_name` fails the build if it
+  forgets. Forward compatibility comes from `lenient_look` instead: a
+  `shell.json` written by a newer build that names `phosphor` parses to `None`
+  and keeps every other preference in the file, which is what the plan actually
+  wanted from the `Option`.
+- **`Surface` has `Overlay` and `Dock`; `TopBar` arrives with Phase 2.**
+- **The surface-offer dialog is not built.** JARVIS's only surface is the
+  overlay, which is ours to show without asking, so there is nothing to offer
+  yet and no way to test one. Cupertino is the first Look that wants the dock;
+  the offer lands with it, in Phase 3. The registry already carries `surfaces`,
+  and `apply_surfaces` is the single place that acts on it.
+- **One command was added that the plan did not list: `shell_looks`.** Without
+  it the picker needs its own copy of the registry in TypeScript, and every new
+  Look would mean remembering to add it in two places — which is exactly the
+  drift this phase exists to remove. `LookId` in `lib/shell-look.ts` still grows
+  by a line per Look, because a Look with an overlay needs a component keyed by
+  its id; the *list* comes from Rust.

@@ -273,8 +273,8 @@ body {
  * none of the layout maths in Dock.tsx knows this exists.
  *
  * The dock window has its own page and so its own `:root`; Rust broadcasts the
- * mode and `lib/jarvis.ts` sets the attribute here exactly as it does in the
- * settings window.
+ * Look and `lib/shell-look.ts` sets the attribute here exactly as it does in
+ * the settings window.
  */
 
 :root[data-theme="jarvis"] .dock {
