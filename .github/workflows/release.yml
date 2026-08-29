@@ -1,24 +1,37 @@
 # Builds and publishes a release when work lands on main.
 #
 # The flow this serves: feature and fix branches merge into `dev`, and when
-# `dev` merges into `main` this runs, verifies the code, builds the Windows
-# installer and publishes it as a GitHub release.
+# `dev` merges into `main` this runs, works out the next version, verifies the
+# code, builds the Windows installer and publishes it as a GitHub release.
 #
-# What decides *whether* a release happens is the version in
-# `src-tauri/tauri.conf.json`. If a release already exists for that version the
-# job stops early and says so, rather than failing or publishing a second
-# release with the same name. So: bump the version in the same pull request as
-# the work, and merging it to main ships it.
+# Every merge to main ships a release. The version is worked out here rather
+# than being maintained by hand:
+#
+#   * normally the patch number goes up — 0.1.0 becomes 0.1.1;
+#   * if someone has already raised the version in `src-tauri/tauri.conf.json`
+#     above the last release, that number is used as-is, so deliberate 0.2.0 or
+#     1.0.0 bumps in a pull request are respected;
+#   * a manual run can force a minor or major bump.
+#
+# The chosen version is written back to `tauri.conf.json` and `Cargo.toml` and
+# committed to main, so the repository and the installers never disagree about
+# which version this is. That push uses GITHUB_TOKEN, and pushes made with it
+# deliberately do not start another workflow run, so this cannot loop.
 
 name: Release
 
 on:
   push:
     branches: [main]
-  # So a release can be re-run by hand if the runner dies mid-build.
   workflow_dispatch:
+    inputs:
+      bump:
+        description: Which part of the version to raise
+        type: choice
+        options: [patch, minor, major]
+        default: patch
 
-# Needed to create the release and upload the installer to it.
+# Needed to push the version bump and to create the release.
 permissions:
   contents: write
 
@@ -34,67 +47,95 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The branch, not the bare commit: this job commits the version bump
+          # back, which a detached HEAD cannot do.
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
 
-      - name: Read the version
+      - name: Work out the next version
         id: version
-        shell: pwsh
-        run: |
-          $tauri = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
-          $match = Select-String -Path Cargo.toml -Pattern '^version = "([^"]+)"' | Select-Object -First 1
-          $cargo = $match.Matches[0].Groups[1].Value
-
-          # These two end up in different places — the installer name and the
-          # crate metadata — and drift between them is confusing later.
-          if ($tauri -ne $cargo) {
-            Write-Error "version mismatch: tauri.conf.json says $tauri, Cargo.toml says $cargo"
-            exit 1
-          }
-
-          "version=$tauri" >> $env:GITHUB_OUTPUT
-          "tag=v$tauri" >> $env:GITHUB_OUTPUT
-          Write-Host "version $tauri"
-
-      - name: Has this version already been released?
-        id: check
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $tag = "${{ steps.version.outputs.tag }}"
-          gh release view $tag *> $null
-          if ($LASTEXITCODE -eq 0) {
-            "publish=false" >> $env:GITHUB_OUTPUT
-            $note = "Release $tag already exists, so nothing was published. Bump ``version`` in ``src-tauri/tauri.conf.json`` to ship a new one."
-            Write-Host $note
-            $note >> $env:GITHUB_STEP_SUMMARY
+          $ErrorActionPreference = 'Stop'
+
+          $declaredText = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          $declared = [version]$declaredText
+
+          # `gh release list` exits 0 and prints nothing when there are no
+          # releases, so there is no failure here to swallow. (`gh release view`
+          # does exit 1 for a missing release, and because the runner uses the
+          # last exit code as the step's own, that failed the whole job even
+          # when the answer was handled. Hence this shape.)
+          $tags = gh release list --json tagName --jq '.[].tagName'
+          $released = @($tags) |
+            Where-Object { $_ -match '^v?\d+\.\d+\.\d+$' } |
+            ForEach-Object { [version]($_ -replace '^v', '') } |
+            Sort-Object -Descending |
+            Select-Object -First 1
+          if (-not $released) { $released = [version]'0.0.0' }
+
+          $level = '${{ inputs.bump }}'
+          if (-not $level) { $level = 'patch' }
+          $manual = '${{ github.event_name }}' -eq 'workflow_dispatch'
+
+          if ($declared -gt $released -and -not $manual) {
+            # Someone raised it deliberately in the pull request; honour that.
+            $next = $declared
+            $why = "using the version already set in tauri.conf.json"
           } else {
-            "publish=true" >> $env:GITHUB_OUTPUT
-            Write-Host "$tag is new; building it"
+            $base = if ($declared -gt $released) { $declared } else { $released }
+            switch ($level) {
+              'major' { $next = [version]::new($base.Major + 1, 0, 0) }
+              'minor' { $next = [version]::new($base.Major, $base.Minor + 1, 0) }
+              default { $next = [version]::new($base.Major, $base.Minor, $base.Build + 1) }
+            }
+            $why = "raised the $level number from $base"
           }
 
-      # ---- everything below only runs when there is something to release ----
+          "version=$next" >> $env:GITHUB_OUTPUT
+          "tag=v$next" >> $env:GITHUB_OUTPUT
+          Write-Host "last release: $released; declared: $declared; next: $next ($why)"
+          "Releasing **v$next** — $why." >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Write the version into the project
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $next = '${{ steps.version.outputs.version }}'
+
+          # Anchored to the start of a line so this only ever touches the
+          # project's own version, never a dependency's.
+          $conf = Get-Content src-tauri/tauri.conf.json -Raw
+          $conf = $conf -replace '(?m)^(\s*"version"\s*:\s*")[^"]+(")', ('${1}' + $next + '${2}')
+          Set-Content src-tauri/tauri.conf.json $conf -NoNewline
+
+          $cargo = Get-Content Cargo.toml -Raw
+          $cargo = $cargo -replace '(?m)^(version = ")[^"]+(")', ('${1}' + $next + '${2}')
+          Set-Content Cargo.toml $cargo -NoNewline
+
+          Write-Host "tauri.conf.json -> $((Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version)"
+          Write-Host "Cargo.toml      -> $((Select-String -Path Cargo.toml -Pattern '^version = "([^"]+)"' | Select-Object -First 1).Matches[0].Groups[1].Value)"
 
       - name: Rust
-        if: steps.check.outputs.publish == 'true'
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
           components: clippy, rustfmt
 
       - name: Cache the Rust build
-        if: steps.check.outputs.publish == 'true'
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: ". -> target"
 
       - name: pnpm
-        if: steps.check.outputs.publish == 'true'
         uses: pnpm/action-setup@v4
         with:
           version: 11
 
       - name: Node
-        if: steps.check.outputs.publish == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -102,32 +143,52 @@ jobs:
           cache-dependency-path: ui/pnpm-lock.yaml
 
       - name: Install the front-end dependencies
-        if: steps.check.outputs.publish == 'true'
         run: pnpm --dir ui install --frozen-lockfile
 
       # A broken build must not become a published installer, so the same checks
-      # that run locally run here, before anything is bundled.
+      # that run locally run here, before anything is bundled. These also bring
+      # Cargo.lock in line with the new version, which is why they come before
+      # the commit below.
       - name: Check formatting
-        if: steps.check.outputs.publish == 'true'
         run: cargo fmt --all -- --check
 
       - name: Clippy
-        if: steps.check.outputs.publish == 'true'
         run: cargo clippy -p mino-core -p mino-win -p mino-shell -p mino-cli --all-targets -- -D warnings
 
       - name: Tests
-        if: steps.check.outputs.publish == 'true'
         run: cargo test -p mino-core -p mino-shell
 
       - name: Typecheck the front end
-        if: steps.check.outputs.publish == 'true'
         run: pnpm --dir ui typecheck
+
+      - name: Commit the version bump
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = '${{ steps.version.outputs.tag }}'
+
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src-tauri/tauri.conf.json Cargo.toml Cargo.lock
+
+          # Nothing staged means the version was already correct in the tree —
+          # a deliberate bump in the pull request. That is not a failure.
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "version files already match $tag; nothing to commit"
+          } else {
+            git commit -m "Release $tag" -m "[skip ci]"
+            git push origin "HEAD:${{ github.ref_name }}"
+            Write-Host "pushed the bump to ${{ github.ref_name }}"
+          }
+          # `git diff --cached --quiet` reports its answer through the exit code,
+          # and the runner would otherwise take that as the step failing.
+          exit 0
 
       # Builds the app and publishes the release with the installer attached.
       # `--bundles nsis` produces the .exe installer only; add `msi` here if a
       # managed-deployment package is ever wanted too.
       - name: Build and publish
-        if: steps.check.outputs.publish == 'true'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -135,7 +196,7 @@ jobs:
           tagName: ${{ steps.version.outputs.tag }}
           releaseName: Mino Win Style ${{ steps.version.outputs.version }}
           releaseBody: |
-            Windows 11 installer, built from `main` at ${{ github.sha }}.
+            Windows 11 installer, built from `main`.
 
             Download `Mino Win Style_${{ steps.version.outputs.version }}_x64-setup.exe` below. It installs
             for the current user, so there is no administrator prompt.
@@ -148,7 +209,6 @@ jobs:
           args: --bundles nsis
 
       - name: Say what shipped
-        if: steps.check.outputs.publish == 'true'
         shell: pwsh
         run: |
           "Published **${{ steps.version.outputs.tag }}** with the NSIS installer attached." >> $env:GITHUB_STEP_SUMMARY
