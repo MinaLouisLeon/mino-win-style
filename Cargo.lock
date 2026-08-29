@@ -1853,7 +1853,7 @@ dependencies = [
 
 [[package]]
 name = "mino-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "clap",
  "mino-core",
@@ -1863,7 +1863,7 @@ dependencies = [
 
 [[package]]
 name = "mino-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -1872,7 +1872,7 @@ dependencies = [
 
 [[package]]
 name = "mino-shell"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde",
  "windows 0.58.0",
@@ -1880,7 +1880,7 @@ dependencies = [
 
 [[package]]
 name = "mino-win"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "mino-core",
  "windows 0.58.0",
@@ -1888,7 +1888,7 @@ dependencies = [
 
 [[package]]
 name = "mino-win-style"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "mino-core",
  "mino-shell",
