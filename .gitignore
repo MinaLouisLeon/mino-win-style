@@ -26,3 +26,8 @@ Thumbs.db
 
 # Build artifacts collected for hand-off
 dist/
+
+# The root package.json exists only to mark the project root and hold two
+# scripts; it has no dependencies, so the lockfile pnpm writes beside it records
+# nothing. The one that matters, ui/pnpm-lock.yaml, is committed.
+/pnpm-lock.yaml

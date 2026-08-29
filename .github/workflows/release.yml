@@ -161,6 +161,21 @@ jobs:
       - name: Typecheck the front end
         run: pnpm --dir ui typecheck
 
+      # Built here, explicitly, from a working directory this job controls.
+      #
+      # tauri.conf.json also asks for these through beforeBuildCommand, but the
+      # CLI decides for itself which directory to run that from — it picks the
+      # nearest package.json — and it once chose ui/, where a path relative to
+      # the project root resolves to ui/ui. Doing it here as well means the
+      # bundle has what it needs no matter where the CLI starts from.
+      - name: Build the front end
+        run: pnpm --dir ui build
+
+      - name: Build the recovery CLI
+        # Bundled beside the app as a resource, so it has to exist before the
+        # bundler runs.
+        run: cargo build --release -p mino-cli
+
       - name: Commit the version bump
         shell: pwsh
         run: |
