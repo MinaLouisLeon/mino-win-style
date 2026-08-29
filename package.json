@@ -1,0 +1,9 @@
+{
+  "name": "mino-win-style",
+  "private": true,
+  "//": "This file exists to mark the root of the project. The Tauri CLI works out where the app lives by finding the nearest package.json, and without one here it settled on ui/package.json and ran the before-commands from inside ui/ — where `pnpm --dir ui build` resolves to ui/ui and fails. The scripts below are also what tauri.conf.json calls, so the same command works from either directory.",
+  "scripts": {
+    "dev": "pnpm --dir ui dev",
+    "build": "pnpm --dir ui build && cargo build --release -p mino-cli"
+  }
+}
