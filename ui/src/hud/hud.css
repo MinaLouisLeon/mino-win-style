@@ -1,0 +1,586 @@
+/*
+ * The HUD window is transparent and covers the whole screen, so the rule here
+ * is stricter than the dock's: anything not explicitly drawn must stay
+ * invisible, and anything drawn must be light enough to read a document
+ * through. Nothing is a solid fill except during the boot and shutdown
+ * sequences, which are the two moments the overlay is allowed to be opaque.
+ *
+ * `pointer-events` is belt and braces. Rust already made the window
+ * click-through at the Win32 level; this makes sure that even if that call ever
+ * failed, the page still would not swallow a click.
+ */
+
+:root {
+  /* Arc-reactor cyan. It does not hold up over a white document on its own —
+     no light-on-transparent palette does — which is what the patch of shade
+     under each group of text further down is for. */
+  --hud-line: #6fe3ff;
+  --hud-hot: #d6f7ff;
+  /* The secondary ink — row labels, units, the subtitle. It was three
+     stops fainter than this, which looked right against a dark wallpaper and
+     was unreadable on the plate over a white one. Secondary does not mean
+     optional. */
+  --hud-dim: rgba(150, 232, 255, 0.82);
+  --hud-warn: #ffb14e;
+  --hud-ink: #eaf9ff;
+  /* The veil the boot sequence plays over. */
+  --hud-veil: rgba(2, 12, 20, 0.82);
+
+  --hud-glow: 0 0 8px rgba(111, 227, 255, 0.55);
+  --hud-mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+
+  /* Overwritten inline by Hud.tsx, which owns the timings. These are only a
+     sane fallback if the page ever renders without them. */
+  --boot-ms: 2600ms;
+  --down-ms: 1400ms;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+  /* Nothing on this page is clickable, and nothing on it should ever be the
+     reason a click did not land. */
+  pointer-events: none;
+}
+
+#root {
+  height: 100%;
+}
+
+.hud {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  color: var(--hud-ink);
+  font-family: var(--hud-mono);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  /* Every layer below is positioned against this padding, so the whole frame
+     insets together on a smaller screen. */
+  padding: 26px 34px;
+  /* Text over a wallpaper needs its own contrast; it cannot borrow any. */
+  text-shadow: 0 0 12px rgba(0, 0, 0, 0.85), 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+/*
+ * Every group of text sits on its own soft plate of shade.
+ *
+ * This is not decoration. The overlay sits over whatever the user happens to
+ * have open, and cyan-on-transparent that reads beautifully over a dark
+ * wallpaper disappears over a white document — which is most of what anybody
+ * actually looks at. A text shadow is not enough on its own: it darkens the few
+ * pixels around each glyph and leaves the counter inside an O bright white.
+ *
+ * `backdrop-filter` would be the adaptive answer — darken whatever is behind,
+ * by however much it needs — and it is the wrong tool here. The window is
+ * transparent, so the desktop showing through it was never painted by this
+ * page; there is no backdrop for the filter to sample and it would come out
+ * doing nothing at all. Only ink the page paints itself is real.
+ *
+ * So: a rounded fill with a large, soft shadow of the same colour around it.
+ * The fill carries the contrast, the shadow is what stops it reading as a panel
+ * with an edge — which a rectangle of flat grey over a photograph very quickly
+ * does.
+ */
+.hud__mark,
+.hud__clock,
+.hud__readouts,
+.hud__boot,
+.hud__status,
+.hud__uptime {
+  border-radius: 12px;
+  background: rgba(2, 11, 18, 0.62);
+  box-shadow: 0 0 34px 20px rgba(2, 11, 18, 0.44);
+}
+
+/* ---------------- backdrop ---------------- */
+
+/* A grid, at the edge of visible. Two gradients rather than a background image
+   so it scales with the display and costs nothing to download. */
+.hud__grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      rgba(111, 227, 255, 0.055) 0 1px,
+      transparent 1px 64px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(111, 227, 255, 0.055) 0 1px,
+      transparent 1px 64px
+    );
+  mask-image: radial-gradient(ellipse 75% 70% at 50% 50%, #000 25%, transparent 78%);
+}
+
+/* The scanning sweep. One element moving on the compositor; it is deliberately
+   slow, because anything quicker is a distraction rather than an atmosphere. */
+.hud__sweep {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 180px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(111, 227, 255, 0.07) 45%,
+    rgba(111, 227, 255, 0.13) 50%,
+    rgba(111, 227, 255, 0.07) 55%,
+    transparent
+  );
+  animation: hud-sweep 9s linear infinite;
+  will-change: transform;
+}
+
+@keyframes hud-sweep {
+  from {
+    transform: translateY(-180px);
+  }
+  to {
+    transform: translateY(100vh);
+  }
+}
+
+/* Darkens the corners just enough to lift the readouts off a busy wallpaper,
+   without dimming the middle of the screen where the work is. */
+.hud__vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 68% 62% at 50% 50%,
+    transparent 55%,
+    rgba(0, 10, 18, 0.34) 100%
+  );
+}
+
+/* ---------------- frame ---------------- */
+
+.hud__frame {
+  position: absolute;
+  inset: 16px;
+  border: 1px solid rgba(111, 227, 255, 0.14);
+  border-radius: 4px;
+}
+
+.hud__corner {
+  position: absolute;
+  width: 46px;
+  height: 46px;
+  border: 2px solid var(--hud-line);
+  filter: drop-shadow(var(--hud-glow));
+}
+
+/* Each corner keeps only the two edges that meet there, which is what makes a
+   bracket rather than a box. */
+.hud__corner--tl {
+  top: -1px;
+  left: -1px;
+  border-right: 0;
+  border-bottom: 0;
+}
+.hud__corner--tr {
+  top: -1px;
+  right: -1px;
+  border-left: 0;
+  border-bottom: 0;
+}
+.hud__corner--bl {
+  bottom: -1px;
+  left: -1px;
+  border-right: 0;
+  border-top: 0;
+}
+.hud__corner--br {
+  bottom: -1px;
+  right: -1px;
+  border-left: 0;
+  border-top: 0;
+}
+
+/* ---------------- reactor ---------------- */
+
+.hud__reactor {
+  position: absolute;
+  inset-inline-end: 6%;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.9;
+  /* Its own shade, for the same reason the text has one — thin cyan strokes
+     over a white window are barely there. Round, because the thing it is
+     backing is. */
+  padding: 26px;
+  margin: -26px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at center,
+    rgba(2, 11, 18, 0.5) 0%,
+    rgba(2, 11, 18, 0.42) 58%,
+    rgba(2, 11, 18, 0) 74%
+  );
+}
+
+.arc {
+  display: block;
+  filter: drop-shadow(0 0 14px rgba(111, 227, 255, 0.32));
+}
+
+.arc__ring {
+  transform-origin: center;
+  /* Changed by React when the boot ends, so the rings ease up to speed rather
+     than snapping into it. */
+  transition: none;
+}
+
+@keyframes arc-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.arc__core {
+  animation: arc-pulse 3.4s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes arc-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    r: 4%;
+  }
+  50% {
+    opacity: 1;
+    r: 5.4%;
+  }
+}
+
+/* ---------------- header ---------------- */
+
+.hud__head {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.hud__mark,
+.hud__clock {
+  padding: 8px 18px;
+  margin: -8px -18px;
+}
+
+.hud__mark strong {
+  display: block;
+  font-size: 20px;
+  letter-spacing: 0.34em;
+  color: var(--hud-hot);
+  filter: drop-shadow(var(--hud-glow));
+}
+
+.hud__mark span,
+.hud__clock span {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--hud-dim);
+  letter-spacing: 0.22em;
+}
+
+.hud__clock {
+  text-align: end;
+}
+
+.hud__clock strong {
+  font-size: 34px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: var(--hud-hot);
+  /* Tabular figures, or the whole line shivers every time a 1 goes by. */
+  font-variant-numeric: tabular-nums;
+  filter: drop-shadow(var(--hud-glow));
+}
+
+/* ---------------- readouts ---------------- */
+
+.hud__readouts {
+  position: absolute;
+  inset-inline-start: 34px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 22px;
+  margin: -20px -22px;
+  animation: hud-fade-in 600ms ease both;
+}
+
+.bar__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+}
+
+.bar__label {
+  color: var(--hud-dim);
+}
+
+.bar__value {
+  color: var(--hud-hot);
+  font-variant-numeric: tabular-nums;
+}
+
+.bar__track {
+  margin-top: 5px;
+  height: 6px;
+  border: 1px solid rgba(111, 227, 255, 0.3);
+  background: rgba(4, 20, 30, 0.42);
+  overflow: hidden;
+}
+
+.bar__fill {
+  height: 100%;
+  background: linear-gradient(to right, rgba(111, 227, 255, 0.55), var(--hud-line));
+  box-shadow: var(--hud-glow);
+  /* Scaled rather than resized: the transform runs on the compositor, and six
+     of these update every second over a transparent full-screen window. */
+  transform-origin: left center;
+  transition: transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+/* RTL flips the box; the fill has to grow from the other end with it. */
+[dir="rtl"] .bar__fill {
+  transform-origin: right center;
+}
+
+/* A bar that is nearly full says so in amber. It is the one piece of colour on
+   the HUD that means something. */
+.bar[data-high] .bar__value {
+  color: var(--hud-warn);
+}
+
+.bar[data-high] .bar__fill {
+  background: linear-gradient(to right, rgba(255, 177, 78, 0.5), var(--hud-warn));
+  box-shadow: 0 0 8px rgba(255, 177, 78, 0.6);
+}
+
+.bar__note {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--hud-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.hud__net {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--hud-hot);
+  font-variant-numeric: tabular-nums;
+}
+
+.hud__net-label {
+  color: var(--hud-dim);
+  letter-spacing: 0.2em;
+}
+
+/* ---------------- footer ---------------- */
+
+.hud__foot {
+  position: absolute;
+  inset-inline: 34px;
+  bottom: 26px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+}
+
+.hud__status {
+  margin: 0;
+  padding: 7px 16px;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  color: var(--hud-ink);
+}
+
+.hud__caret {
+  color: var(--hud-line);
+  margin-inline-end: 8px;
+  filter: drop-shadow(var(--hud-glow));
+}
+
+.hud__uptime {
+  margin: 0;
+  padding: 7px 16px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--hud-dim);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---------------- boot ---------------- */
+
+/* The one moment the overlay is allowed to be opaque. It covers the screen, so
+   it is also the one moment the HUD is in the way — which is why it is under
+   three seconds and happens once. */
+.hud[data-phase="boot"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--hud-veil);
+  animation: hud-veil var(--boot-ms) ease-in forwards;
+}
+
+@keyframes hud-veil {
+  0% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.hud__boot {
+  position: absolute;
+  inset-inline-start: 34px;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+  letter-spacing: 0.2em;
+  min-width: 320px;
+  padding: 22px 26px;
+}
+
+.hud__boot li {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  /* Each line arrives already faded in; React adds them one at a time, so the
+     animation runs once per line rather than once for the list. */
+  animation: hud-line-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hud__boot b {
+  color: var(--hud-line);
+  font-weight: 400;
+  filter: drop-shadow(var(--hud-glow));
+}
+
+@keyframes hud-line-in {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+[dir="rtl"] .hud__boot li {
+  animation-name: hud-line-in-rtl;
+}
+
+@keyframes hud-line-in-rtl {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes hud-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---------------- shutdown ---------------- */
+
+/* Collapses to a line and goes out, the way a CRT does. Rust keeps the window
+   alive for exactly --down-ms so this is never cut off half way. */
+.hud[data-phase="down"] {
+  animation: hud-power-down var(--down-ms) cubic-bezier(0.55, 0, 0.55, 0.2) forwards;
+}
+
+@keyframes hud-power-down {
+  0% {
+    opacity: 1;
+    transform: scaleY(1);
+    filter: brightness(1);
+  }
+  35% {
+    opacity: 1;
+    transform: scaleY(1);
+    filter: brightness(2.2);
+  }
+  70% {
+    opacity: 1;
+    transform: scaleY(0.004);
+    filter: brightness(3);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleY(0.004) scaleX(0);
+    filter: brightness(3);
+  }
+}
+
+/* Respect the system setting. The HUD without its animation is still the HUD;
+   without this it is a migraine for anyone who asked not to be shown motion. */
+@media (prefers-reduced-motion: reduce) {
+  .hud__sweep,
+  .arc__ring,
+  .arc__core {
+    animation: none;
+  }
+
+  .hud__boot li,
+  .hud__readouts {
+    animation-duration: 1ms;
+  }
+
+  .bar__fill {
+    transition: none;
+  }
+}

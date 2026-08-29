@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "id": "com.mino.jarvis",
+  "name": {
+    "en": "JARVIS",
+    "ar": "جارفِس"
+  },
+  "author": "mino-win-style",
+  "description": {
+    "en": "The desktop the HUD is drawn on: black, arc-reactor cyan, transparency on, and the taskbar out of the way so the overlay has the screen. Every clock digit on show, because a heads-up display that hides the seconds is not one.",
+    "ar": "سطح المكتب الذي تُرسم عليه شاشة المعلومات: أسود، وسماوي المفاعل القوسي، وشفافية مفعّلة، وشريط مهام ينزوي ليترك الشاشة للطبقة. والثواني ظاهرة في الساعة، فشاشة معلومات تخفي الثواني ليست كذلك."
+  },
+  "requires": {
+    "min_build": 22000,
+    "max_build": null
+  },
+  "settings": {
+    "appearance.dark_mode": true,
+    "appearance.accent_color": "#00A8CC",
+    "appearance.transparency": true,
+    "appearance.accent_on_titlebars": true,
+    "appearance.accent_on_start_taskbar": true,
+
+    "desktop.wallpaper": "assets/wallpaper.png",
+    "desktop.wallpaper_fit": "fill",
+
+    "taskbar.alignment": "center",
+    "taskbar.auto_hide": true,
+    "taskbar.widgets": false,
+    "taskbar.search": "hidden",
+    "taskbar.task_view": false,
+    "taskbar.seconds_in_clock": true,
+
+    "start.layout": "more_pins",
+    "start.recently_added_apps": false,
+    "start.recommended_files": false,
+
+    "explorer.show_file_extensions": true,
+    "explorer.compact_view": true,
+    "explorer.launch_to": "this_pc"
+  }
+}

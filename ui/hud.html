@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mino HUD</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <!--
+      Same reasoning as dock.html: this window has no console and no reachable
+      devtools, so a page that failed to load and a page that loaded and did
+      nothing look identical from outside. This reports through the IPC before
+      the bundle runs, which is the only way to catch a failure in the bundle.
+    -->
+    <script>
+      (function () {
+        function say(line) {
+          try {
+            window.__TAURI_INTERNALS__.invoke("dock_trace", { line: "hud: " + line });
+          } catch (e) {
+            /* nothing left to report it with */
+          }
+        }
+        say("inline script ran; ipc=" + !!window.__TAURI_INTERNALS__);
+        window.addEventListener("error", function (e) {
+          say("page error: " + e.message + " @ " + e.filename + ":" + e.lineno);
+        });
+        window.addEventListener("unhandledrejection", function (e) {
+          say("unhandled rejection: " + e.reason);
+        });
+      })();
+    </script>
+    <script type="module" src="/src/hud/main.tsx"></script>
+  </body>
+</html>
