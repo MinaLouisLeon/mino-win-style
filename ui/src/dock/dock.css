@@ -60,6 +60,106 @@ body {
   }
 }
 
+/* ---------------- context menu ---------------- */
+
+.menu {
+  position: absolute;
+  min-width: 200px;
+  max-width: 300px;
+  padding: 5px;
+  border-radius: 12px;
+  background: rgba(38, 40, 48, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(30px) saturate(170%);
+  -webkit-backdrop-filter: blur(30px) saturate(170%);
+  outline: none;
+  /* Sits above the panel, and above the icons that grow towards it. */
+  z-index: 10;
+}
+
+@media (prefers-color-scheme: light) {
+  .menu {
+    background: rgba(250, 250, 252, 0.9);
+    border-color: rgba(0, 0, 0, 0.1);
+    box-shadow: 0 16px 44px rgba(0, 0, 0, 0.28);
+  }
+}
+
+.menu__title {
+  padding: 5px 10px 7px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.45);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: rgba(255, 255, 255, 0.92);
+  font: inherit;
+  font-size: 13px;
+  text-align: start;
+  cursor: default;
+}
+
+/* The hairline belongs between items, so it is drawn by the item below it. */
+.menu__item--sep {
+  margin-top: 5px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0 0 7px 7px;
+  padding-top: 10px;
+}
+
+.menu__item:hover,
+.menu__item:focus-visible {
+  background: var(--menu-hover, rgba(255, 255, 255, 0.14));
+  outline: none;
+}
+
+.menu__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu__tick {
+  flex: none;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+@media (prefers-color-scheme: light) {
+  .menu__title {
+    color: rgba(20, 22, 28, 0.5);
+  }
+  .menu__item {
+    color: rgba(20, 22, 28, 0.92);
+  }
+  .menu__item--sep {
+    border-top-color: rgba(0, 0, 0, 0.1);
+  }
+  .menu__item:hover,
+  .menu__item:focus-visible {
+    background: rgba(0, 0, 0, 0.08);
+  }
+}
+
+/* The icon whose menu is open stays lit while you choose. */
+.slot--open .icon {
+  filter: brightness(1.15);
+}
+
 /* Whatever happens, the dock is a thing you can see. */
 .oops {
   color: rgba(255, 255, 255, 0.85);

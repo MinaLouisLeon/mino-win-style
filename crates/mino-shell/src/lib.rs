@@ -20,6 +20,7 @@ pub struct AppWindow {
     pub title: String,
     pub exe: String,
     pub minimized: bool,
+    pub maximized: bool,
 }
 
 /// Straight-alpha RGBA, top row first.
@@ -39,7 +40,9 @@ pub struct WorkArea {
 }
 
 #[cfg(windows)]
-pub use windows_impl::{activate, icon_rgba, launch, windows, work_area};
+pub use windows_impl::{
+    activate, close, icon_rgba, is_maximized, launch, minimize, toggle_maximize, windows, work_area,
+};
 
 /// One entry on the dock: an application, whether or not it is running.
 ///

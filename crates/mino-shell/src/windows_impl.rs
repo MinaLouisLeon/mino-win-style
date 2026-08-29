@@ -8,7 +8,9 @@ use std::ffi::c_void;
 use std::path::Path;
 
 use windows::core::PCWSTR;
-use windows::Win32::Foundation::{CloseHandle, BOOL, HWND, LPARAM, MAX_PATH, POINT, RECT, TRUE};
+use windows::Win32::Foundation::{
+    CloseHandle, BOOL, HWND, LPARAM, MAX_PATH, POINT, RECT, TRUE, WPARAM,
+};
 use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED};
 use windows::Win32::Graphics::Gdi::{
     DeleteObject, GetDC, GetDIBits, GetMonitorInfoW, GetObjectW, MonitorFromPoint, ReleaseDC,
@@ -21,9 +23,9 @@ use windows::Win32::System::Threading::{
 use windows::Win32::UI::Shell::ShellExecuteW;
 use windows::Win32::UI::WindowsAndMessaging::{
     DestroyIcon, EnumWindows, GetIconInfo, GetWindow, GetWindowLongPtrW, GetWindowTextLengthW,
-    GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindowVisible, PrivateExtractIconsW,
-    SetForegroundWindow, ShowWindow, GWL_EXSTYLE, GW_OWNER, HICON, ICONINFO, SW_RESTORE,
-    SW_SHOWNORMAL, WS_EX_TOOLWINDOW,
+    GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindowVisible, IsZoomed, PostMessageW,
+    PrivateExtractIconsW, SetForegroundWindow, ShowWindow, GWL_EXSTYLE, GW_OWNER, HICON, ICONINFO,
+    SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, SW_SHOWNORMAL, WM_CLOSE, WS_EX_TOOLWINDOW,
 };
 
 use crate::{AppWindow, Icon, WorkArea};
@@ -82,6 +84,7 @@ unsafe extern "system" fn collect(hwnd: HWND, lparam: LPARAM) -> BOOL {
         title,
         exe,
         minimized: IsIconic(hwnd).as_bool(),
+        maximized: IsZoomed(hwnd).as_bool(),
     });
     TRUE
 }
@@ -270,6 +273,37 @@ pub fn activate(hwnd: isize) -> bool {
         }
         SetForegroundWindow(hwnd).as_bool()
     }
+}
+
+pub fn minimize(hwnd: isize) -> bool {
+    unsafe { ShowWindow(HWND(hwnd as *mut c_void), SW_MINIMIZE).as_bool() }
+}
+
+/// Maximise, or restore if it is already maximised — one menu item, like the
+/// system menu's own behaviour.
+pub fn toggle_maximize(hwnd: isize) -> bool {
+    let hwnd = HWND(hwnd as *mut c_void);
+    unsafe {
+        let cmd = if IsZoomed(hwnd).as_bool() {
+            SW_RESTORE
+        } else {
+            SW_MAXIMIZE
+        };
+        ShowWindow(hwnd, cmd).as_bool()
+    }
+}
+
+pub fn is_maximized(hwnd: isize) -> bool {
+    unsafe { IsZoomed(HWND(hwnd as *mut c_void)).as_bool() }
+}
+
+/// Asks a window to close, the same way its own close button does.
+///
+/// `WM_CLOSE` is posted, not sent: the app gets to run its own close handling,
+/// prompt about unsaved work, and refuse. Anything stronger would be us deciding
+/// that a document is expendable.
+pub fn close(hwnd: isize) -> bool {
+    unsafe { PostMessageW(HWND(hwnd as *mut c_void), WM_CLOSE, WPARAM(0), LPARAM(0)).is_ok() }
 }
 
 /// Start something. `ShellExecuteW` so this works for `.exe` files and for URIs

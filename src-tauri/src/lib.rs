@@ -46,13 +46,25 @@ pub fn run() {
             dock::dock_launch,
             dock::dock_place,
             dock::dock_trace,
+            dock::dock_minimize,
+            dock::dock_toggle_maximize,
+            dock::dock_close,
+            dock::dock_pin,
+            dock::dock_unpin,
         ])
         .setup(|app| {
+            // The window is built here, on the main thread, whether or not the
+            // dock is switched on — see dock::create for why it cannot be built
+            // later. Toggling then only shows and hides it.
+            let handle = app.handle().clone();
             let config = dock::DockConfig::load();
             dock::trace(&format!("setup: dock enabled = {}", config.enabled));
+            if let Err(err) = dock::create(&handle) {
+                dock::trace(&format!("create() failed: {err}"));
+            }
             if config.enabled {
-                if let Err(err) = dock::show(&app.handle().clone()) {
-                    eprintln!("dock: {err}");
+                if let Err(err) = dock::show(&handle) {
+                    dock::trace(&format!("show() failed: {err}"));
                 }
             }
             Ok(())

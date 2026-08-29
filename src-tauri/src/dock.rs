@@ -9,7 +9,9 @@ use std::fs;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{
+    AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, WebviewUrl, WebviewWindowBuilder,
+};
 
 pub const WINDOW_LABEL: &str = "dock";
 
@@ -73,11 +75,18 @@ impl DockConfig {
     }
 }
 
-/// Creates the dock window if it is not already there.
-pub fn show(app: &AppHandle) -> Result<(), String> {
-    trace("show() entered");
+/// Creates the dock's window, once, at startup.
+///
+/// It is built whether or not the dock is switched on, and simply left hidden
+/// when it is off. That is not laziness avoided for its own sake: building a
+/// webview window anywhere except application setup blocks — the window appears
+/// but every line after `build()` is never reached, so it is never placed,
+/// never shown properly, and its page never loads. Toggling therefore moves a
+/// window that already exists rather than making a new one.
+pub fn create(app: &AppHandle) -> Result<(), String> {
+    trace("create() entered");
     if app.get_webview_window(WINDOW_LABEL).is_some() {
-        trace("show(): already there");
+        trace("create(): already there");
         return Ok(());
     }
 
@@ -98,9 +107,6 @@ pub fn show(app: &AppHandle) -> Result<(), String> {
         .map_err(|e| format!("could not create the dock window: {e}"))?;
 
     trace("dock window created");
-    // Placed and shown from here rather than waiting for the page to ask.
-    // Leaving that to the page means any fault inside it shows up as a dock
-    // that never appears, which is the hardest possible thing to diagnose.
     if let Some(window) = app.get_webview_window(WINDOW_LABEL) {
         let _ = place_window(&window, 600.0, 140.0);
     }
@@ -108,7 +114,10 @@ pub fn show(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// Centres a dock-sized window along the bottom of the primary work area.
+/// Sizes the dock and centres it along the bottom of the primary work area.
+///
+/// Deliberately does *not* show the window: the page calls this whenever its
+/// layout changes, and a hidden dock re-placing itself must stay hidden.
 fn place_window(window: &tauri::WebviewWindow, width: f64, height: f64) -> Result<(), String> {
     let area = mino_shell::work_area();
     let scale = window.scale_factor().unwrap_or(1.0);
@@ -123,16 +132,31 @@ fn place_window(window: &tauri::WebviewWindow, width: f64, height: f64) -> Resul
     window
         .set_position(LogicalPosition::new(x, y))
         .map_err(|e| e.to_string())?;
-    window.show().map_err(|e| e.to_string())?;
-    // Re-assert after moving: another window going full-screen can take the top
-    // spot, and a dock that hides behind things is not a dock.
-    let _ = window.set_always_on_top(true);
     Ok(())
 }
 
+/// Puts the dock on screen. The window already exists; this only reveals it.
+pub fn show(app: &AppHandle) -> Result<(), String> {
+    let Some(window) = app.get_webview_window(WINDOW_LABEL) else {
+        trace("show(): no dock window to show");
+        return Err("the dock window is missing; restart the app".into());
+    };
+    trace("show(): revealing the dock");
+    window.show().map_err(|e| e.to_string())?;
+    // Re-assert after showing: another window going full-screen can take the
+    // top spot, and a dock that hides behind things is not a dock.
+    let _ = window.set_always_on_top(true);
+    let _ = app.emit_to(WINDOW_LABEL, "dock-active", true);
+    Ok(())
+}
+
+/// Takes the dock off screen, leaving the window in place for next time.
 pub fn hide(app: &AppHandle) {
     if let Some(window) = app.get_webview_window(WINDOW_LABEL) {
-        let _ = window.close();
+        trace("hide(): hiding the dock");
+        let _ = window.hide();
+        // Tells the page to stop looking at the desktop while nobody can see it.
+        let _ = app.emit_to(WINDOW_LABEL, "dock-active", false);
     }
 }
 
@@ -159,11 +183,28 @@ pub fn dock_set_enabled(app: AppHandle, enabled: bool) -> Result<DockConfig, Str
     let mut config = DockConfig::load();
     config.enabled = enabled;
     config.save()?;
-    if enabled {
-        show(&app)?;
-    } else {
-        hide(&app);
-    }
+
+    // Hand the window work to the main thread rather than doing it here.
+    //
+    // A command handler runs on a worker thread, and building a webview window
+    // from one blocks waiting for the event loop: the window gets created, but
+    // every line after `build()` — placing it, showing it — never runs. The
+    // symptom is a dock that reappears at the default size in the top-left
+    // corner with a page that never loaded, which looks exactly like the
+    // toggle doing nothing. At startup this was invisible because `setup()`
+    // already runs on the main thread.
+    let handle = app.clone();
+    app.run_on_main_thread(move || {
+        if enabled {
+            if let Err(err) = show(&handle) {
+                trace(&format!("show() failed: {err}"));
+            }
+        } else {
+            hide(&handle);
+        }
+    })
+    .map_err(|e| e.to_string())?;
+
     Ok(config)
 }
 
@@ -243,6 +284,50 @@ pub fn dock_activate(hwnd: isize) -> bool {
 #[tauri::command]
 pub fn dock_launch(target: String) -> bool {
     mino_shell::launch(&target)
+}
+
+#[tauri::command]
+pub fn dock_minimize(hwnd: isize) -> bool {
+    mino_shell::minimize(hwnd)
+}
+
+#[tauri::command]
+pub fn dock_toggle_maximize(hwnd: isize) -> bool {
+    mino_shell::toggle_maximize(hwnd)
+}
+
+/// Asks the window to close. The app may refuse, or prompt about unsaved work —
+/// which is the point of asking rather than killing it.
+#[tauri::command]
+pub fn dock_close(hwnd: isize) -> bool {
+    mino_shell::close(hwnd)
+}
+
+#[tauri::command]
+pub fn dock_pin(exe: String) -> Result<DockConfig, String> {
+    let mut config = DockConfig::load();
+    if !config.pinned.iter().any(|p| same_path(p, &exe)) {
+        config.pinned.push(exe);
+        config.save()?;
+    }
+    Ok(config)
+}
+
+#[tauri::command]
+pub fn dock_unpin(exe: String) -> Result<DockConfig, String> {
+    let mut config = DockConfig::load();
+    let before = config.pinned.len();
+    config.pinned.retain(|p| !same_path(p, &exe));
+    if config.pinned.len() != before {
+        config.save()?;
+    }
+    Ok(config)
+}
+
+/// Windows paths are case-insensitive, and the same executable can arrive from
+/// a pin (as typed) or from an enumerated window (as Windows reports it).
+fn same_path(a: &str, b: &str) -> bool {
+    a.eq_ignore_ascii_case(b)
 }
 
 /// Places the dock centred along the bottom of the primary monitor's work area.

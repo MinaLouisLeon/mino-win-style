@@ -5,6 +5,7 @@ export interface AppWindow {
   title: string;
   exe: string;
   minimized: boolean;
+  maximized: boolean;
 }
 
 export interface DockItem {
@@ -19,6 +20,12 @@ export interface DockLayout {
   work_y: number;
   work_width: number;
   work_height: number;
+  icon_size: number;
+}
+
+export interface DockConfig {
+  enabled: boolean;
+  pinned: string[];
   icon_size: number;
 }
 
@@ -40,4 +47,10 @@ export const dockApi = {
   activate: (hwnd: number) => invoke<boolean>("dock_activate", { hwnd }),
   launch: (target: string) => invoke<boolean>("dock_launch", { target }),
   place: (width: number, height: number) => invoke<void>("dock_place", { width, height }),
+  config: () => invoke<DockConfig>("dock_config"),
+  minimize: (hwnd: number) => invoke<boolean>("dock_minimize", { hwnd }),
+  toggleMaximize: (hwnd: number) => invoke<boolean>("dock_toggle_maximize", { hwnd }),
+  close: (hwnd: number) => invoke<boolean>("dock_close", { hwnd }),
+  pin: (exe: string) => invoke<DockConfig>("dock_pin", { exe }),
+  unpin: (exe: string) => invoke<DockConfig>("dock_unpin", { exe }),
 };
