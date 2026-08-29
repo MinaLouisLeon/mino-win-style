@@ -10,7 +10,7 @@
 import { mockApi } from "./mock";
 import type { LookId, LookInfo, ShellConfig, Telemetry } from "./shell-look";
 
-export type { LookId, LookInfo, ShellConfig, Telemetry } from "./shell-look";
+export type { LookId, LookInfo, ShellConfig, Surface, Telemetry } from "./shell-look";
 
 export type Category = "appearance" | "desktop" | "taskbar" | "start" | "explorer";
 export type Tier = "a" | "b" | "c";
@@ -116,11 +116,16 @@ export interface PackSummary {
   applicable: boolean;
 }
 
+/** When the dock is on screen. `hover` keeps it at the bottom edge until the
+ *  pointer comes for it, which is what Cupertino wants. */
+export type Reveal = "always" | "hover";
+
 /** The dock is our own window, not a Windows setting, so it has its own config. */
 export interface DockConfig {
   enabled: boolean;
   pinned: string[];
   icon_size: number;
+  reveal: Reveal;
 }
 
 /** The bar, likewise. `height` is logical pixels, and it is what gets reserved
@@ -152,6 +157,7 @@ export interface Api {
   applyPack(dir: string): Promise<ApplyReport>;
   dockConfig(): Promise<DockConfig>;
   dockSetEnabled(enabled: boolean): Promise<DockConfig>;
+  dockSetReveal(hover: boolean): Promise<DockConfig>;
   topBarConfig(): Promise<TopBarConfig>;
   topBarSetEnabled(enabled: boolean): Promise<TopBarConfig>;
   shellConfig(): Promise<ShellConfig>;
@@ -197,6 +203,7 @@ function tauriApi(): Api {
     applyPack: (dir) => invoke<ApplyReport>("apply_pack", { dir }),
     dockConfig: () => invoke<DockConfig>("dock_config"),
     dockSetEnabled: (enabled) => invoke<DockConfig>("dock_set_enabled", { enabled }),
+    dockSetReveal: (hover) => invoke<DockConfig>("dock_set_reveal", { hover }),
     topBarConfig: () => invoke<TopBarConfig>("top_bar_config"),
     topBarSetEnabled: (enabled) => invoke<TopBarConfig>("top_bar_set_enabled", { enabled }),
     shellConfig: () => invoke<ShellConfig>("shell_config"),

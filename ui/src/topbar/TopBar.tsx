@@ -14,7 +14,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import type { Telemetry } from "../lib/shell-look";
+import { watchShellLook, type LookId, type Telemetry } from "../lib/shell-look";
 import { useI18n } from "../i18n";
 import { clockTime, rate } from "../hud/format";
 import { barApi, onEvent, trace, type AppWindow } from "./api";
@@ -42,6 +42,19 @@ export function TopBar() {
   const [menuOpen, setMenuOpen] = useState(false);
   /** False while the bar is hidden: a hidden window should ask nothing. */
   const [active, setActive] = useState(true);
+  /**
+   * Which Look is worn, for the one thing that is layout rather than colour.
+   *
+   * Cupertino puts the window commands behind a chevron instead of spelling
+   * them out, because a menu bar with three buttons shouted at the left of it
+   * is not the arrangement it is imitating. Everything else about a Look is a
+   * block of CSS variables and never reaches this file.
+   */
+  const [look, setLook] = useState<LookId | null>(null);
+  /** Open only under Cupertino, where the commands live in a menu. */
+  const [commandsOpen, setCommandsOpen] = useState(false);
+
+  useEffect(() => watchShellLook((config) => setLook(config.active)), []);
 
   useEffect(() => {
     let live = true;
@@ -101,10 +114,13 @@ export function TopBar() {
   // A menu that cannot be dismissed by clicking away from it is a trap, and on
   // a bar that is always on top it is a trap over everything.
   useEffect(() => {
-    if (!menuOpen) return;
-    const close = () => setMenuOpen(false);
+    if (!menuOpen && !commandsOpen) return;
+    const close = () => {
+      setMenuOpen(false);
+      setCommandsOpen(false);
+    };
     const key = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenuOpen(false);
+      if (event.key === "Escape") close();
     };
     window.addEventListener("mousedown", close);
     window.addEventListener("keydown", key);
@@ -112,7 +128,7 @@ export function TopBar() {
       window.removeEventListener("mousedown", close);
       window.removeEventListener("keydown", key);
     };
-  }, [menuOpen]);
+  }, [menuOpen, commandsOpen]);
 
   const act = useCallback(
     (run: (hwnd: number) => Promise<unknown>) => () => {
@@ -123,6 +139,20 @@ export function TopBar() {
   );
 
   const battery = telemetry?.battery;
+  /** Cupertino tucks the window commands away; every other Look spells them
+   *  out, which is what a bar with room for them should do. */
+  const tucked = look === "cupertino";
+
+  const commands = held && [
+    { key: "min", label: t("bar.minimize"), glyph: "\u2212", run: barApi.minimize },
+    {
+      key: "max",
+      label: held.maximized ? t("bar.restore") : t("bar.maximize"),
+      glyph: "\u25A1",
+      run: barApi.toggleMaximize,
+    },
+    { key: "close", label: t("bar.close"), glyph: "\u00D7", run: barApi.close },
+  ];
 
   return (
     <div className="bar" lang={lang}>
@@ -130,30 +160,60 @@ export function TopBar() {
         <span className="bar__mark" aria-hidden="true" />
         <strong className="bar__app">{held ? nameOf(held.exe) : t("bar.desktop")}</strong>
 
-        {held && (
+        {commands && !tucked && (
           <span className="bar__commands">
-            <button type="button" className="bar__btn" title={t("bar.minimize")} onClick={act(barApi.minimize)}>
-              <span aria-hidden="true">&minus;</span>
-              <span className="bar__sr">{t("bar.minimize")}</span>
-            </button>
+            {commands.map((command) => (
+              <button
+                key={command.key}
+                type="button"
+                className={`bar__btn${command.key === "close" ? " bar__btn--close" : ""}`}
+                title={command.label}
+                onClick={act(command.run)}
+              >
+                <span aria-hidden="true">{command.glyph}</span>
+                <span className="bar__sr">{command.label}</span>
+              </button>
+            ))}
+          </span>
+        )}
+
+        {commands && tucked && (
+          <span className="bar__menu-wrap">
             <button
               type="button"
-              className="bar__btn"
-              title={held.maximized ? t("bar.restore") : t("bar.maximize")}
-              onClick={act(barApi.toggleMaximize)}
+              className="bar__btn bar__chevron"
+              aria-haspopup="menu"
+              aria-expanded={commandsOpen}
+              title={t("bar.window")}
+              onMouseDown={(event) => event.stopPropagation()}
+              onClick={() => setCommandsOpen((open) => !open)}
             >
-              <span aria-hidden="true">&#9633;</span>
-              <span className="bar__sr">{held.maximized ? t("bar.restore") : t("bar.maximize")}</span>
+              <span aria-hidden="true">&#8964;</span>
+              <span className="bar__sr">{t("bar.window")}</span>
             </button>
-            <button
-              type="button"
-              className="bar__btn bar__btn--close"
-              title={t("bar.close")}
-              onClick={act(barApi.close)}
-            >
-              <span aria-hidden="true">&times;</span>
-              <span className="bar__sr">{t("bar.close")}</span>
-            </button>
+
+            {commandsOpen && (
+              <div
+                className="bar__menu bar__menu--start"
+                role="menu"
+                onMouseDown={(event) => event.stopPropagation()}
+              >
+                {commands.map((command) => (
+                  <button
+                    key={command.key}
+                    type="button"
+                    role="menuitem"
+                    className="bar__item"
+                    onClick={() => {
+                      setCommandsOpen(false);
+                      act(command.run)();
+                    }}
+                  >
+                    {command.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </span>
         )}
       </div>

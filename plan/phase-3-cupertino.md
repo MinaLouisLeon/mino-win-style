@@ -122,3 +122,36 @@ A maximized window sits between the bar and the dock with nothing overlapping
 it, the dock reveals and hides on the bottom edge without flicker, the bar's app
 name follows focus and survives being clicked, both languages are checked, and
 the Look's card states plainly what it does not do.
+
+## What shipped, where it differs from the above
+
+The Look, the skin, the offer and the reveal are all in. Two of the "Done when"
+clauses cannot be claimed: nothing here has run outside the mock, and this time
+not even that — no browser was available this session, so the surface offer and
+the Cupertino skin have `tsc` and `vite` behind them and nothing else.
+
+- **The edge-reveal is a pointer poll, not a trigger window.** The plan wanted a
+  1px always-on-top window along the bottom edge to catch `mouseenter`. That
+  window would sit exactly where the auto-hidden taskbar's own reveal trigger
+  is — and this Look auto-hides the taskbar — so the two would compete for the
+  same row of pixels. `GetCursorPos` on a thread of our own, eight times a
+  second, observes the edge instead of taking it. It is not the mouse hook the
+  plan rightly ruled out; nothing is installed in any other process.
+- **The dock's reveal is a preference, not a property of the Look.** It lives in
+  `dock.json` with a switch on Home, and accepting Cupertino's surface offer is
+  the only thing that sets it — the offer says "the dock, waiting at the bottom
+  edge", so accepting is informed. Someone who already had a dock keeps theirs
+  exactly as it was, because they were never asked.
+- **The surface offer landed here, as Phase 0 said it would.** Declining is a
+  real answer rather than a cancel: the Look stays on with the skin and nothing
+  else, and the pack question still follows, because it was never the same
+  question. Turning the Look off never turns a surface off again — a surface
+  someone accepted is theirs, on the switch it has always had.
+- **The bar keeps its configured height.** The plan asked for 26px under
+  Cupertino. The height is a reservation made at registration, so a per-Look
+  height would mean re-registering the appbar on every Look switch — more moving
+  parts around the one call that can leave dead screen behind. The height stays
+  the user's, in `topbar.json`, and the Look dresses what is there.
+- **No trash on the dock.** The plan left it optional. It stays out: the Recycle
+  Bin is already reachable and a dock entry that is not an application is a
+  special case in code that draws applications.

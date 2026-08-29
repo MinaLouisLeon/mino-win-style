@@ -598,6 +598,77 @@ select {
   border-block-start: 1px solid var(--line);
 }
 
+/* ---------------- Cupertino ----------------
+ *
+ * The first Look that is not an instrument panel, and the one that will find
+ * anywhere the app's own CSS quietly assumed the JARVIS direction of travel.
+ * Nothing here is a new rule: it is the same variables, set softer and rounder.
+ *
+ * `--accent` is deliberately not set, for the same reason JARVIS does not set
+ * it. The app wears the system accent (see App.tsx), and the Cupertino pack has
+ * usually just set that to the same blue — so the app matches the desktop
+ * rather than overriding it, and someone who declined the pack still gets the
+ * skin.
+ */
+
+:root[data-theme="cupertino"] {
+  --bg: #1c1c1e;
+  --layer: rgba(44, 44, 46, 0.72);
+  --layer-2: rgba(58, 58, 60, 0.6);
+  --ink: #f5f5f7;
+  --ink-2: #c7c7cc;
+  --muted: #8e8e93;
+  --line: rgba(255, 255, 255, 0.12);
+  --line-2: rgba(255, 255, 255, 0.2);
+
+  --warn: #ffd60a;
+  --warn-bg: rgba(120, 90, 8, 0.3);
+  --error: #ff453a;
+  --error-bg: rgba(120, 30, 25, 0.3);
+
+  --radius: 10px;
+  --radius-lg: 14px;
+  --shadow: 0 1px 1px rgba(0, 0, 0, 0.16), 0 22px 50px -28px rgba(0, 0, 0, 0.9);
+}
+
+:root[data-theme="cupertino"] body {
+  background:
+    radial-gradient(ellipse 120% 80% at 50% -10%, #2f3540 0%, #1c1c1e 58%);
+  letter-spacing: 0.01em;
+}
+
+/* Vibrancy on bounded surfaces only — panels, cards and dialogs. Never on a
+   full-screen layer: a blur the size of the window is paid for on every frame
+   that touches it. */
+:root[data-theme="cupertino"] .panel,
+:root[data-theme="cupertino"] .card,
+:root[data-theme="cupertino"] .look,
+:root[data-theme="cupertino"] .dialog {
+  background: var(--layer);
+  border-color: var(--line);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+:root[data-theme="cupertino"] .nav {
+  background: rgba(28, 28, 30, 0.72);
+  border-inline-end-color: var(--line);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+:root[data-theme="cupertino"] h1 {
+  letter-spacing: -0.01em;
+}
+
+:root[data-theme="cupertino"] .brand__mark {
+  border-radius: 8px;
+}
+
+:root[data-theme="cupertino"] .btn {
+  border-radius: 8px;
+}
+
 /* ---------------- pending bar ---------------- */
 
 .bar {

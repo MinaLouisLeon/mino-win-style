@@ -55,6 +55,7 @@ const SHUTDOWN_MS: u64 = 1_400;
 #[serde(rename_all = "kebab-case")]
 pub enum LookId {
     Jarvis,
+    Cupertino,
 }
 
 impl LookId {
@@ -63,6 +64,7 @@ impl LookId {
     pub fn as_str(self) -> &'static str {
         match self {
             LookId::Jarvis => "jarvis",
+            LookId::Cupertino => "cupertino",
         }
     }
 
@@ -84,6 +86,9 @@ pub enum Surface {
     /// The dock. It has its own switch and its own config, so a Look that wants
     /// it has to *ask* — see the note on `surfaces` below.
     Dock,
+    /// The bar. Asked for the same way, and with more reason: it takes a strip
+    /// of the desktop away from every other window.
+    TopBar,
 }
 
 /// A Look is a description, not code: a theme name, the surfaces it draws, and
@@ -91,10 +96,14 @@ pub enum Surface {
 /// draws an overlay — a component on the page.
 ///
 /// `surfaces` is a statement of what the Look wants, not permission to take it.
-/// The overlay is ours (it changes nothing outside our own process); the dock
-/// belongs to the user, who has their own switch and their own pinned list for
-/// it, so a Look that lists `Dock` has to offer rather than commandeer. Nothing
-/// lists it yet — the offer lands with Cupertino, the first Look that does.
+/// The overlay is ours — it changes nothing outside our own process, so
+/// [`apply_surfaces`] shows and hides it without asking. The dock and the bar
+/// are not: they have their own switches, the dock has the user's pinned list
+/// in it, and the bar takes a strip of the desktop away from everything else.
+/// So a Look that lists either *offers* it, in the same register as its pack,
+/// and the answer is the user's. Nothing here turns them on, and nothing here
+/// turns them off again either: a surface someone accepted stays theirs, on the
+/// switch it has always had.
 #[derive(Debug, Clone, Serialize)]
 pub struct Look {
     pub id: LookId,
@@ -110,12 +119,24 @@ impl Look {
     }
 }
 
-pub const LOOKS: &[Look] = &[Look {
-    id: LookId::Jarvis,
-    theme: "jarvis",
-    surfaces: &[Surface::Overlay],
-    pack_id: Some("com.mino.jarvis"),
-}];
+pub const LOOKS: &[Look] = &[
+    Look {
+        id: LookId::Jarvis,
+        theme: "jarvis",
+        surfaces: &[Surface::Overlay],
+        pack_id: Some("com.mino.jarvis"),
+    },
+    Look {
+        id: LookId::Cupertino,
+        theme: "cupertino",
+        surfaces: &[Surface::TopBar, Surface::Dock],
+        // The Look is called Cupertino and the pack is still called macOS. One
+        // pack, already shipped and already with a wallpaper, rather than a
+        // second near-identical one to keep in step — the picker says so, so
+        // nobody reads it as a setting having gone missing.
+        pack_id: Some("com.mino.macos"),
+    },
+];
 
 /// The entry for a Look. Total by construction: `LookId` only has variants that
 /// [`LOOKS`] carries, and a test holds the two together.
@@ -379,9 +400,11 @@ pub fn hide(app: &AppHandle) {
 
 /// Brings our own surfaces into line with the Look being worn.
 ///
-/// Only the overlay for now, because only the overlay is ours to show without
-/// asking. When a Look wants the dock or the bar, the offer goes through the UI
-/// and this stays the place that acts on the answer.
+/// The overlay only, and deliberately: it is the one surface that is ours to
+/// show without asking. A Look that wants the dock or the bar asks for it
+/// through the UI, and the answer lands on those surfaces' own switches — which
+/// is why switching Looks here can never turn one of them on or off behind the
+/// user's back.
 ///
 /// Must be called on the main thread — it shows and hides windows.
 pub fn apply_surfaces(app: &AppHandle, config: &ShellConfig) {

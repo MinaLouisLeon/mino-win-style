@@ -21,10 +21,10 @@
  * *pages* know how to draw something for. A Look with an overlay needs a
  * component keyed by its id, so this grows by one line as each Look lands.
  */
-export type LookId = "jarvis";
+export type LookId = "jarvis" | "cupertino";
 
 /** One of our own windows. Mirrors `Surface` in `src-tauri/src/shell_look.rs`. */
-export type Surface = "overlay" | "dock";
+export type Surface = "overlay" | "dock" | "top-bar";
 
 /** A registry entry, straight from Rust. */
 export interface LookInfo {

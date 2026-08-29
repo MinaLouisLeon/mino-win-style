@@ -17,6 +17,7 @@ import {
   type LookId,
   type LookInfo,
   type ShellConfig,
+  type Surface,
   type TopBarConfig,
   type OsBuild,
   type PackSummary,
@@ -45,6 +46,17 @@ export default function App() {
   const [looks, setLooks] = useState<LookInfo[]>([]);
   /** Set while a Look is waiting in the confirmation dialog. */
   const [pendingPack, setPendingPack] = useState<string | null>(null);
+  /**
+   * Set while a Look is asking for surfaces it wants but does not have.
+   *
+   * The pack it also wants to offer rides along, because the two questions have
+   * to be asked in order rather than on top of each other: surfaces first —
+   * they are ours and instant — then the pack, which writes to the machine.
+   */
+  const [surfaceAsk, setSurfaceAsk] = useState<{
+    wants: Surface[];
+    pack: PackSummary | null;
+  } | null>(null);
 
   const [pending, setPending] = useState<Record<string, Value>>({});
   const [plan, setPlan] = useState<Plan | null>(null);
@@ -167,15 +179,60 @@ export default function App() {
         }
       }
 
-      // The Look names its own pack, so this stays true as Looks are added.
-      const packId = id ? (looks.find((look) => look.id === id)?.pack_id ?? null) : null;
-      if (packId) {
-        const offered = packs.find((pack) => pack.id === packId && pack.applicable);
-        if (offered) await reviewPack(offered);
-      }
+      // What this Look wants, and what it already has. The Look names both, so
+      // this stays true as Looks are added.
+      const info = id ? (looks.find((look) => look.id === id) ?? null) : null;
+      const packId = info?.pack_id ?? null;
+      const offered = packId
+        ? (packs.find((pack) => pack.id === packId && pack.applicable) ?? null)
+        : null;
+
+      // Surfaces it wants that are not already on. The overlay is never in this
+      // list: it is ours, it changes nothing on the machine, and Rust has
+      // already shown it. The dock and the bar belong to the user.
+      const wants = (info?.surfaces ?? []).filter((surface) =>
+        surface === "dock" ? !dock?.enabled : surface === "top-bar" ? !bar?.enabled : false,
+      );
+
+      if (wants.length > 0) setSurfaceAsk({ wants, pack: offered });
+      else if (offered) await reviewPack(offered);
     } catch (err) {
       setMessage(String(err));
     }
+  };
+
+  /**
+   * The answer to the surface offer.
+   *
+   * Declining is a real answer, not a cancel: the Look stays on with the skin
+   * and nothing else, which is the same shape as declining its pack. Either way
+   * the pack question follows, because it was never the same question.
+   */
+  const answerSurfaces = async (accept: boolean) => {
+    const ask = surfaceAsk;
+    setSurfaceAsk(null);
+    if (!ask) return;
+
+    if (accept) {
+      try {
+        for (const surface of ask.wants) {
+          if (surface === "dock") {
+            await api.dockSetEnabled(true);
+            // Waiting at the bottom edge rather than sitting on screen is part
+            // of what was accepted — the offer says so — and this is the only
+            // place that sets it. Someone who already had a dock keeps theirs
+            // exactly as it was, because they were never asked.
+            setDock(await api.dockSetReveal(true));
+          } else if (surface === "top-bar") {
+            setBar(await api.topBarSetEnabled(true));
+          }
+        }
+      } catch (err) {
+        setMessage(String(err));
+      }
+    }
+
+    if (ask.pack) await reviewPack(ask.pack);
   };
 
   const setLookOptions = async (options: {
@@ -346,6 +403,13 @@ export default function App() {
                 setMessage(String(err));
               }
             }}
+            onDockReveal={async (hover) => {
+              try {
+                setDock(await api.dockSetReveal(hover));
+              } catch (err) {
+                setMessage(String(err));
+              }
+            }}
             bar={bar}
             onBarChange={async (enabled) => {
               try {
@@ -406,6 +470,20 @@ export default function App() {
           setPendingPack(null);
         }}
       />
+
+      {surfaceAsk && (
+        <Ask
+          title={t("look.surfaces.title")}
+          body={`${t("look.surfaces.body")} ${surfaceAsk.wants
+            .map((surface) => t(`look.surface.${surface}`))
+            .join(t("common.listSep"))}`}
+          confirm={t("look.surfaces.yes")}
+          cancel={t("look.surfaces.no")}
+          busy={busy}
+          onConfirm={() => void answerSurfaces(true)}
+          onCancel={() => void answerSurfaces(false)}
+        />
+      )}
 
       {restartAsk && (
         <Ask

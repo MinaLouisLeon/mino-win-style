@@ -7,6 +7,9 @@
 
 use std::fs;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Mutex, PoisonError};
+use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 use tauri::{
@@ -15,13 +18,32 @@ use tauri::{
 
 pub const WINDOW_LABEL: &str = "dock";
 
+/// When the dock is on screen.
+///
+/// `Always` is what it has always done. `Hover` keeps it out of the way until
+/// the pointer reaches the bottom of the screen, which is what Cupertino wants
+/// and what makes a dock feel like the thing it is imitating rather than a
+/// panel that is permanently in the way.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Reveal {
+    #[default]
+    Always,
+    Hover,
+}
+
+/// `serde(default)` at the container level: a `dock.json` written before the
+/// dock could hide keeps its pins and gets `Always`, rather than failing to
+/// parse over a field it has never heard of.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct DockConfig {
     pub enabled: bool,
     /// Executable paths, in the order they appear on the dock.
     pub pinned: Vec<String>,
     /// Height of an icon at rest, in logical pixels.
     pub icon_size: u32,
+    pub reveal: Reveal,
 }
 
 impl Default for DockConfig {
@@ -30,6 +52,128 @@ impl Default for DockConfig {
             enabled: false,
             pinned: default_pins(),
             icon_size: 48,
+            reveal: Reveal::Always,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Hiding at the edge
+// ---------------------------------------------------------------------------
+
+/// How often the pointer is asked about while the dock is hidden.
+const WATCH_MS: u64 = 120;
+/// How close to the bottom of the screen counts as asking for the dock.
+const EDGE_BAND: i32 = 2;
+/// Slack around the revealed dock, so crossing the gap between two icons at its
+/// edge does not close it.
+const SLACK: i32 = 12;
+/// How long the pointer has to be away before the dock goes again. Short enough
+/// not to feel stuck, long enough to survive a hand moving past the corner.
+const GRACE: Duration = Duration::from_millis(450);
+
+/// Where the dock window was last put, in physical pixels, which is what the
+/// pointer is reported in. Written by `place_window`, read by the watcher.
+static PLACED: Mutex<Option<mino_shell::WorkArea>> = Mutex::new(None);
+
+/// Bumped whenever the watcher should stop. A thread whose generation is no
+/// longer the current one exits at its next tick, which is how switching the
+/// dock off, or switching reveal modes twice quickly, cannot leave two watchers
+/// arguing about the same window.
+static WATCH: AtomicU64 = AtomicU64::new(0);
+
+fn placed() -> Option<mino_shell::WorkArea> {
+    *PLACED.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Stops any watcher that is running.
+pub fn stop_watch() {
+    WATCH.fetch_add(1, Ordering::SeqCst);
+}
+
+/// Watches the pointer, and brings the dock up when it reaches the bottom of
+/// the screen.
+///
+/// A poll on a thread of our own, not a mouse hook: a hook is a callback in
+/// every process that moves a mouse, and this project does not do that even
+/// where it is documented. `GetCursorPos` asks once, eight times a second, and
+/// the dock already polls for its window list.
+pub fn start_watch(app: &AppHandle) {
+    let mine = WATCH.fetch_add(1, Ordering::SeqCst) + 1;
+    let handle = app.clone();
+
+    std::thread::spawn(move || {
+        let mut revealed = false;
+        let mut away_since: Option<Instant> = None;
+
+        loop {
+            std::thread::sleep(Duration::from_millis(WATCH_MS));
+            if WATCH.load(Ordering::SeqCst) != mine {
+                // Superseded. The dock is left as it is: whoever replaced this
+                // watcher owns the window now.
+                return;
+            }
+
+            let Some(cursor) = mino_shell::cursor_pos() else {
+                continue;
+            };
+
+            if revealed {
+                let inside = placed().is_some_and(|rect| mino_shell::within(cursor, rect, SLACK));
+                if inside {
+                    away_since = None;
+                    continue;
+                }
+                match away_since {
+                    None => away_since = Some(Instant::now()),
+                    Some(left) if left.elapsed() >= GRACE => {
+                        revealed = false;
+                        away_since = None;
+                        let handle = handle.clone();
+                        let _ = handle.clone().run_on_main_thread(move || hide(&handle));
+                    }
+                    Some(_) => {}
+                }
+            } else if mino_shell::at_edge(
+                cursor,
+                mino_shell::work_area(),
+                mino_shell::Edge::Bottom,
+                EDGE_BAND,
+            ) {
+                revealed = true;
+                away_since = None;
+                let handle = handle.clone();
+                let _ = handle.clone().run_on_main_thread(move || {
+                    if let Err(err) = show(&handle) {
+                        trace(&format!("reveal failed: {err}"));
+                    }
+                });
+            }
+        }
+    });
+}
+
+/// Puts the dock into whatever state its config asks for: on screen, waiting at
+/// the edge, or gone.
+///
+/// One place, so the startup path and the switch cannot disagree about what
+/// "the dock is on, in hover mode" looks like.
+pub fn apply_mode(app: &AppHandle, config: &DockConfig) {
+    stop_watch();
+    if !config.enabled {
+        hide(app);
+        return;
+    }
+    match config.reveal {
+        Reveal::Always => {
+            if let Err(err) = show(app) {
+                trace(&format!("show() failed: {err}"));
+            }
+        }
+        Reveal::Hover => {
+            // Starts out of sight. The pointer is what brings it back.
+            hide(app);
+            start_watch(app);
         }
     }
 }
@@ -132,6 +276,15 @@ fn place_window(window: &tauri::WebviewWindow, width: f64, height: f64) -> Resul
     window
         .set_position(LogicalPosition::new(x, y))
         .map_err(|e| e.to_string())?;
+
+    // Remembered in physical pixels, because that is what the pointer is
+    // reported in and the watcher has to compare the two.
+    *PLACED.lock().unwrap_or_else(PoisonError::into_inner) = Some(mino_shell::WorkArea {
+        x: (x * scale).round() as i32,
+        y: (y * scale).round() as i32,
+        width: (width * scale).round() as i32,
+        height: (height * scale).round() as i32,
+    });
     Ok(())
 }
 
@@ -194,16 +347,24 @@ pub fn dock_set_enabled(app: AppHandle, enabled: bool) -> Result<DockConfig, Str
     // toggle doing nothing. At startup this was invisible because `setup()`
     // already runs on the main thread.
     let handle = app.clone();
-    app.run_on_main_thread(move || {
-        if enabled {
-            if let Err(err) = show(&handle) {
-                trace(&format!("show() failed: {err}"));
-            }
-        } else {
-            hide(&handle);
-        }
-    })
-    .map_err(|e| e.to_string())?;
+    let mode = config.clone();
+    app.run_on_main_thread(move || apply_mode(&handle, &mode))
+        .map_err(|e| e.to_string())?;
+
+    Ok(config)
+}
+
+/// Whether the dock waits at the bottom edge or stays on screen.
+#[tauri::command]
+pub fn dock_set_reveal(app: AppHandle, hover: bool) -> Result<DockConfig, String> {
+    let mut config = DockConfig::load();
+    config.reveal = if hover { Reveal::Hover } else { Reveal::Always };
+    config.save()?;
+
+    let handle = app.clone();
+    let mode = config.clone();
+    app.run_on_main_thread(move || apply_mode(&handle, &mode))
+        .map_err(|e| e.to_string())?;
 
     Ok(config)
 }

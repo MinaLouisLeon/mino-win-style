@@ -348,3 +348,58 @@ body {
   box-shadow: 0 0 20px rgba(111, 227, 255, 0.16), 0 16px 44px rgba(0, 0, 0, 0.7);
   font-family: "Cascadia Mono", Consolas, ui-monospace, monospace;
 }
+
+/* ---------------- arriving ----------------
+ *
+ * The dock is hidden until the pointer reaches the bottom of the screen, and
+ * Rust shows the window the moment it does. A window that simply appears reads
+ * as a glitch, so the panel slides the last few pixels up into place.
+ *
+ * On the stage, not the panel: the panel already carries a `translateX` for the
+ * magnification, and two transforms on one element is one of them lost.
+ */
+@keyframes dock-arrive {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.stage[data-arriving] {
+  animation: dock-arrive 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage[data-arriving] {
+    animation: none;
+  }
+}
+
+/* ---------------- Cupertino ----------------
+ *
+ * The dock is already a macOS dock in shape — this only softens it further and
+ * lets the wallpaper through, now that the Look has usually just turned
+ * transparency on.
+ */
+
+:root[data-theme="cupertino"] .dock {
+  border-radius: 22px;
+  background: rgba(58, 58, 60, 0.42);
+  border-color: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-theme="cupertino"] .dock {
+    background: rgba(242, 242, 247, 0.55);
+    border-color: rgba(255, 255, 255, 0.75);
+  }
+}

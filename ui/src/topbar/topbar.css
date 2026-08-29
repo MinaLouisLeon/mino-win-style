@@ -4,11 +4,11 @@
  * of it is ours and none of it should be see-through in a way that makes the
  * text underneath fight the text on top.
  *
- * It is also the only surface with no Look of its own yet. Cupertino and Yaru
- * are what it is for, and until they land this is a plain Fluent strip that
- * reads on a light desktop and a dark one — plus the JARVIS block at the
- * bottom, so someone who has that Look on and switches the bar on does not get
- * a Fluent strip over an instrument panel.
+ * Cupertino is the Look it exists for, and it has its own block at the bottom.
+ * What is up here is the strip with no Look at all: a plain Fluent bar that has
+ * to read on a light desktop and a dark one, since it can be switched on by
+ * itself. JARVIS has a block too, so someone wearing that and switching the bar
+ * on does not get a Fluent strip over an instrument panel.
  */
 
 * {
@@ -233,4 +233,61 @@ body {
 
 :root[data-theme="jarvis"] .bar__menu {
   border-radius: 3px;
+}
+
+/* The window-commands menu hangs from the left of the bar, under the chevron,
+   rather than from the right where our own menu is. */
+.bar__menu--start {
+  inset-inline-start: 0;
+  inset-inline-end: auto;
+}
+
+.bar__chevron {
+  color: var(--bar-dim);
+}
+
+/* ---------------- Cupertino ----------------
+ *
+ * The Look the bar exists for. Lighter, rounder, and quieter than the default
+ * strip: the name of the application carries the left, and everything else
+ * gets out of its way.
+ */
+
+:root[data-theme="cupertino"] {
+  --bar-bg: rgba(28, 28, 30, 0.62);
+  --bar-ink: #f5f5f7;
+  --bar-dim: #c7c7cc;
+  --bar-line: rgba(255, 255, 255, 0.14);
+  --bar-hover: rgba(255, 255, 255, 0.14);
+  --bar-danger: #ff453a;
+  --bar-radius: 6px;
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-theme="cupertino"] {
+    --bar-bg: rgba(246, 246, 248, 0.68);
+    --bar-ink: #1c1c1e;
+    --bar-dim: #6b6b70;
+    --bar-line: rgba(0, 0, 0, 0.12);
+    --bar-hover: rgba(0, 0, 0, 0.08);
+  }
+}
+
+:root[data-theme="cupertino"] .bar {
+  letter-spacing: 0.01em;
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+}
+
+:root[data-theme="cupertino"] .bar__app {
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+:root[data-theme="cupertino"] .bar__mark {
+  border-radius: 4px;
+}
+
+:root[data-theme="cupertino"] .bar__menu {
+  border-radius: 10px;
 }

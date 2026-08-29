@@ -89,6 +89,38 @@ pub fn bar_rect(monitor: WorkArea, edge: Edge, thickness: i32) -> WorkArea {
     }
 }
 
+/// Whether the pointer has reached the edge a hidden surface lives on.
+///
+/// `band` is how many pixels count as "at the edge". Two is enough: the pointer
+/// stops at the last row of the screen whatever speed it was moving, and a
+/// wider band means a dock that appears when nobody asked for it.
+///
+/// Pure, because the alternative to reading this from a test is reading it by
+/// waving a mouse at a screen.
+pub fn at_edge(cursor: (i32, i32), area: WorkArea, edge: Edge, band: i32) -> bool {
+    let (x, y) = cursor;
+    let band = band.max(1);
+    match edge {
+        Edge::Top => y <= area.y + band && x >= area.x && x < area.x + area.width,
+        Edge::Bottom => y >= area.y + area.height - band && x >= area.x && x < area.x + area.width,
+        Edge::Left => x <= area.x + band && y >= area.y && y < area.y + area.height,
+        Edge::Right => x >= area.x + area.width - band && y >= area.y && y < area.y + area.height,
+    }
+}
+
+/// Whether the pointer is inside a rectangle, `margin` pixels of slack included.
+///
+/// The slack is what stops a revealed dock from flickering shut when the
+/// pointer crosses a gap between two icons at the very edge of the panel.
+pub fn within(cursor: (i32, i32), area: WorkArea, margin: i32) -> bool {
+    let (x, y) = cursor;
+    let margin = margin.max(0);
+    x >= area.x - margin
+        && x < area.x + area.width + margin
+        && y >= area.y - margin
+        && y < area.y + area.height + margin
+}
+
 /// Physical pixels to the logical ones every window placement call wants, as
 /// `(x, y, width, height)`.
 ///
@@ -139,8 +171,8 @@ pub struct Battery {
 pub use telemetry::Sampler;
 #[cfg(windows)]
 pub use windows_impl::{
-    activate, close, foreground, icon_rgba, is_maximized, launch, minimize, screen_area,
-    toggle_maximize, windows, work_area,
+    activate, close, cursor_pos, foreground, icon_rgba, is_maximized, launch, minimize,
+    screen_area, toggle_maximize, windows, work_area,
 };
 
 /// One entry on the dock: an application, whether or not it is running.
@@ -291,6 +323,41 @@ mod tests {
         let area = bar_rect(SCREEN, Edge::Top, 26);
         assert_eq!(logical(area, 0.0), (0.0, 0.0, 1920.0, 26.0));
         assert_eq!(logical(area, f64::NAN), (0.0, 0.0, 1920.0, 26.0));
+    }
+
+    #[test]
+    fn the_edge_is_the_last_row_of_the_screen_and_not_a_region() {
+        // The pointer stops at the last row however fast it was moving, so the
+        // band is small on purpose: wider, and the dock appears unasked.
+        assert!(at_edge((900, 1079), SCREEN, Edge::Bottom, 2));
+        assert!(at_edge((900, 1078), SCREEN, Edge::Bottom, 2));
+        assert!(!at_edge((900, 1060), SCREEN, Edge::Bottom, 2));
+        assert!(at_edge((900, 0), SCREEN, Edge::Top, 2));
+    }
+
+    #[test]
+    fn the_edge_of_one_screen_is_not_the_edge_of_the_next() {
+        // A pointer at the bottom of a second monitor is not at the bottom of
+        // this one, and a dock that came up for it would come up on the wrong
+        // screen.
+        assert!(!at_edge((-400, 1079), SCREEN, Edge::Bottom, 2));
+        assert!(!at_edge((2400, 1079), SCREEN, Edge::Bottom, 2));
+    }
+
+    #[test]
+    fn a_revealed_surface_keeps_a_little_slack_around_itself() {
+        let dock = WorkArea {
+            x: 660,
+            y: 940,
+            width: 600,
+            height: 140,
+        };
+        assert!(within((960, 1000), dock, 0));
+        // Just outside, but inside the slack: crossing a gap between icons at
+        // the edge of the panel must not close it.
+        assert!(!within((960, 930), dock, 0));
+        assert!(within((960, 930), dock, 12));
+        assert!(!within((300, 1000), dock, 12));
     }
 
     #[test]

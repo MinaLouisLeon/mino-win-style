@@ -19,14 +19,21 @@ blue accent, its own wallpaper, an auto-hiding taskbar and a Start menu with the
 recommendations turned off. It goes through the same confirmation screen as a
 single switch, and lands as one journal entry, so one Revert undoes all of it.
 
-What a Look **cannot** do is make Windows look like macOS, and it is worth being
-plain about why: this app changes settings Windows exposes, and Windows exposes
-no dock, no menu bar, and no way to restyle its own shell chrome. That is a
-ceiling in the approach, not a gap in the implementation.
+What a pack **cannot** do is make Windows look like macOS, and it is worth being
+plain about why: it changes settings Windows exposes, and Windows exposes no
+dock, no menu bar, and no way to restyle its own shell chrome. That is a ceiling
+in the approach, not a gap in the implementation.
 
 Getting past it means doing what Seelen UI does — not restyling the Windows
-shell but **drawing our own on top of it**. That layer is `mino-shell`, and the
-first piece of it exists:
+shell but **drawing our own on top of it**. That layer is `mino-shell`, and it
+now has three surfaces: a dock, an overlay and a bar.
+
+A **Shell Look** is the two halves together: a pack, a skin over our own
+windows, and the surfaces it wants. `%LOCALAPPDATA%\mino-win-style\shell.json`
+records which one is worn — one at a time — and switching it off restores the
+Fluent look exactly, because the skin is one attribute and nothing else. The pack is *offered* rather than
+applied, and so are the surfaces: they have their own switches, and a Look never
+takes one without asking.
 
 ## The dock
 
@@ -87,8 +94,9 @@ to the process exiting; for the case where all three were missed there is
 Turn it on from the app's Home screen. Settings live in
 `%LOCALAPPDATA%\mino-win-style\topbar.json`.
 
-Still to come: the Cupertino and Yaru layouts that the bar exists for, and
-per-monitor placement — like the dock, it is the primary monitor only.
+[Cupertino](#cupertino) is the Look it was built for, and lays it out its own
+way. Still to come: Yaru's, and per-monitor placement — like the dock, it is the
+primary monitor only.
 
 ## JARVIS mode
 
@@ -147,6 +155,50 @@ mode on happens in the settings window, which is the only place that has one.
 Rust's `jarvis-mode` event starts both at the same moment, so they stay in step.
 
 Preferences live in `%LOCALAPPDATA%\mino-win-style\jarvis.json`.
+
+## Cupertino
+
+The Look the bar exists for, and the closest this project gets to the thing the
+section above says a pack cannot do: a menu bar across the top, the dock at the
+bottom, the taskbar auto-hidden, and `packs/macos/` underneath setting the
+accent, the wallpaper and the transparency that makes our two surfaces read as
+the same material as Windows' own.
+
+The Look is called Cupertino and the pack is still called macOS. One pack,
+already shipped and already with a wallpaper, rather than a second
+near-identical one to keep in step — the picker says as much, so nobody reads it
+as a setting having gone missing.
+
+Switching it on asks twice, and neither question is the toggle's to answer for
+you. The dock and the bar have their own switches, so a Look that wants them
+**offers** them — declining leaves the skin and nothing else, and accepting
+leaves them on their own switches afterwards, because a surface someone accepted
+is theirs. Then the pack goes through the same confirmation screen as any other
+change. Nothing is applied by putting a Look on.
+
+The dock waits at the bottom edge under this Look rather than sitting on screen,
+which is part of what the offer says and the only thing that sets it. Finding
+the pointer there is a poll — `GetCursorPos`, eight times a second, on a thread
+of our own — and deliberately not a mouse hook: a hook is a callback in every
+process that moves a mouse, and this project does not do that even where it is
+documented.
+
+### What it is not
+
+This is the Look most likely to promise more than Windows allows, so its card in
+the app says the following, not only this README:
+
+- **Title bars stay Windows title bars**, at the top right of every window.
+  There is no supported way to move or restyle them, and traffic lights drawn by
+  us on someone else's window would be a lie that stops working the moment the
+  window moves.
+- **Alt+Tab is Alt+Tab.** Cmd+Tab's application-level switching is not something
+  a window on top can provide.
+- **Start is still Start.** A launcher of our own is a possible later surface,
+  not part of this one.
+
+The gap between what a Look promises and what Windows allows is exactly where a
+user's trust in the rest of the app gets spent.
 
 ## Why it is built this way
 
@@ -286,6 +338,10 @@ refuses to run without `icon.ico`. Regenerate with
   full-screen placement over the taskbar, and whether a transparent
   always-on-top overlay behaves itself in front of real windows are all
   untested outside the browser.
+- **Nothing about Cupertino has run either.** The surface offer, the dock
+  waiting at the bottom edge, the pointer poll that brings it back, and whether
+  a maximized window really lands between the bar and the dock are all untested
+  outside the mock.
 - **Nothing about the bar has run.** `mino-shell`'s half of it compiles and its
   arithmetic is unit-tested, but no `SHAppBarMessage` call in this repository
   has ever been made: whether the strip is granted, whether a maximized window

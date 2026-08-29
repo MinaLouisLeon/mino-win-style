@@ -11,6 +11,7 @@ import type {
   Api,
   ApplyReport,
   Category,
+  Reveal,
   JournalEntry,
   Plan,
   Support,
@@ -140,11 +141,18 @@ const entries: JournalEntry[] = [];
 let mockDockEnabled = false;
 let mockShell: ShellConfig = { ...SHELL_DEFAULTS };
 let mockTopBar = false;
+let mockReveal: Reveal = "always";
 
 /** The registry, as Rust would have sent it. Kept in step with `LOOKS` in
  *  `src-tauri/src/shell_look.rs` by hand, like the tweak list above. */
 const mockLooks: LookInfo[] = [
   { id: "jarvis", theme: "jarvis", surfaces: ["overlay"], pack_id: "com.mino.jarvis" },
+  {
+    id: "cupertino",
+    theme: "cupertino",
+    surfaces: ["top-bar", "dock"],
+    pack_id: "com.mino.macos",
+  },
 ];
 
 const wait = <T,>(value: T): Promise<T> =>
@@ -330,10 +338,15 @@ export const mockApi: Api = {
       }),
     ),
 
-  dockConfig: () => wait({ enabled: mockDockEnabled, pinned: [], icon_size: 48 }),
+  dockConfig: () =>
+    wait({ enabled: mockDockEnabled, pinned: [], icon_size: 48, reveal: mockReveal }),
   dockSetEnabled: (enabled) => {
     mockDockEnabled = enabled;
-    return wait({ enabled, pinned: [], icon_size: 48 });
+    return wait({ enabled, pinned: [], icon_size: 48, reveal: mockReveal });
+  },
+  dockSetReveal: (hover) => {
+    mockReveal = hover ? "hover" : "always";
+    return wait({ enabled: mockDockEnabled, pinned: [], icon_size: 48, reveal: mockReveal });
   },
 
   // In a browser tab the bar is a page you can open, not a strip that reserves

@@ -44,6 +44,7 @@ pub fn run() {
             commands::apply_pack,
             dock::dock_config,
             dock::dock_set_enabled,
+            dock::dock_set_reveal,
             dock::dock_layout,
             dock::dock_items,
             dock::dock_icon,
@@ -77,11 +78,9 @@ pub fn run() {
             if let Err(err) = dock::create(&handle) {
                 dock::trace(&format!("create() failed: {err}"));
             }
-            if config.enabled {
-                if let Err(err) = dock::show(&handle) {
-                    dock::trace(&format!("show() failed: {err}"));
-                }
-            }
+            // One call for all three states: on screen, waiting at the bottom
+            // edge for the pointer, or off.
+            dock::apply_mode(&handle, &config);
 
             // Same story for the overlay, and for the same reason: it is built
             // here on the main thread whether or not a Look is being worn.

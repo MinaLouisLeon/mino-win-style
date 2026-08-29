@@ -23,11 +23,11 @@ use windows::Win32::System::Threading::{
 };
 use windows::Win32::UI::Shell::ShellExecuteW;
 use windows::Win32::UI::WindowsAndMessaging::{
-    DestroyIcon, EnumWindows, GetForegroundWindow, GetIconInfo, GetWindow, GetWindowLongPtrW,
-    GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindowVisible,
-    IsZoomed, PostMessageW, PrivateExtractIconsW, SetForegroundWindow, ShowWindow, GWL_EXSTYLE,
-    GW_OWNER, HICON, ICONINFO, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, SW_SHOWNORMAL, WM_CLOSE,
-    WS_EX_TOOLWINDOW,
+    DestroyIcon, EnumWindows, GetCursorPos, GetForegroundWindow, GetIconInfo, GetWindow,
+    GetWindowLongPtrW, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, IsIconic,
+    IsWindowVisible, IsZoomed, PostMessageW, PrivateExtractIconsW, SetForegroundWindow, ShowWindow,
+    GWL_EXSTYLE, GW_OWNER, HICON, ICONINFO, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, SW_SHOWNORMAL,
+    WM_CLOSE, WS_EX_TOOLWINDOW,
 };
 
 use crate::{AppWindow, Icon, WorkArea};
@@ -353,6 +353,21 @@ pub fn launch(target: &str) -> bool {
         // ShellExecute returns >32 on success. It is an HINSTANCE for
         // historical reasons and means nothing else.
         result.0 as isize > 32
+    }
+}
+
+/// Where the pointer is, in physical screen pixels.
+///
+/// A poll rather than a hook. Watching for the pointer reaching the bottom of
+/// the screen could be done with `SetWindowsHookEx`, and is not: a hook is a
+/// callback in every process that moves a mouse, which is the kind of thing
+/// this project does not do even where it is documented. `GetCursorPos` asks
+/// once and is told, and the dock already polls for its window list.
+pub fn cursor_pos() -> Option<(i32, i32)> {
+    unsafe {
+        let mut point = POINT { x: 0, y: 0 };
+        GetCursorPos(&mut point).ok()?;
+        Some((point.x, point.y))
     }
 }
 

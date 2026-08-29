@@ -164,6 +164,17 @@ export function Dock() {
   // The window outlives the dock being switched off — it is only hidden — so
   // Rust says when it is on screen and the page stops looking at the desktop
   // while nobody can see it.
+  // Revealed from the edge, the dock should arrive rather than appear. The
+  // class is dropped again once the slide is over, so the next reveal replays
+  // it — an animation left on the element would only ever run once.
+  const [arriving, setArriving] = useState(false);
+  useEffect(() => {
+    if (!active) return;
+    setArriving(true);
+    const id = window.setTimeout(() => setArriving(false), 260);
+    return () => window.clearTimeout(id);
+  }, [active]);
+
   useEffect(() => {
     let stop: (() => void) | undefined;
     import("@tauri-apps/api/event")
@@ -323,6 +334,7 @@ export function Dock() {
   return (
     <div
       className="stage"
+      data-arriving={arriving || undefined}
       // Tracked here rather than on the panel: the icons stand well above it
       // once they grow, and the effect should start as the cursor comes down
       // towards the dock rather than snapping on at its edge.

@@ -19,6 +19,7 @@ interface Props {
   journalDir: string;
   dock: DockConfig | null;
   onDockChange: (enabled: boolean) => void;
+  onDockReveal: (hover: boolean) => void;
   bar: TopBarConfig | null;
   onBarChange: (enabled: boolean) => void;
   shell: ShellConfig | null;
@@ -38,6 +39,7 @@ export function Home({
   journalDir,
   dock,
   onDockChange,
+  onDockReveal,
   bar,
   onBarChange,
   shell,
@@ -133,6 +135,19 @@ export function Home({
           />
           <span>{t("dock.show")}</span>
         </label>
+        {/* Only once there is a dock to hide. A preference for something that
+            is switched off is a control with nothing behind it. */}
+        {dock?.enabled && (
+          <label className="dock-toggle">
+            <input
+              type="checkbox"
+              checked={dock.reveal === "hover"}
+              onChange={(e) => onDockReveal(e.target.checked)}
+            />
+            <span>{t("dock.hover")}</span>
+          </label>
+        )}
+
         <p className="muted small">{t("dock.note")}</p>
       </section>
 
