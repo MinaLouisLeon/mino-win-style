@@ -1,0 +1,154 @@
+# Builds and publishes a release when work lands on main.
+#
+# The flow this serves: feature and fix branches merge into `dev`, and when
+# `dev` merges into `main` this runs, verifies the code, builds the Windows
+# installer and publishes it as a GitHub release.
+#
+# What decides *whether* a release happens is the version in
+# `src-tauri/tauri.conf.json`. If a release already exists for that version the
+# job stops early and says so, rather than failing or publishing a second
+# release with the same name. So: bump the version in the same pull request as
+# the work, and merging it to main ships it.
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+  # So a release can be re-run by hand if the runner dies mid-build.
+  workflow_dispatch:
+
+# Needed to create the release and upload the installer to it.
+permissions:
+  contents: write
+
+# One release at a time. Not cancel-in-progress: a half-uploaded release asset
+# is worse than waiting.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the version
+        id: version
+        shell: pwsh
+        run: |
+          $tauri = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          $match = Select-String -Path Cargo.toml -Pattern '^version = "([^"]+)"' | Select-Object -First 1
+          $cargo = $match.Matches[0].Groups[1].Value
+
+          # These two end up in different places — the installer name and the
+          # crate metadata — and drift between them is confusing later.
+          if ($tauri -ne $cargo) {
+            Write-Error "version mismatch: tauri.conf.json says $tauri, Cargo.toml says $cargo"
+            exit 1
+          }
+
+          "version=$tauri" >> $env:GITHUB_OUTPUT
+          "tag=v$tauri" >> $env:GITHUB_OUTPUT
+          Write-Host "version $tauri"
+
+      - name: Has this version already been released?
+        id: check
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "${{ steps.version.outputs.tag }}"
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            "publish=false" >> $env:GITHUB_OUTPUT
+            $note = "Release $tag already exists, so nothing was published. Bump ``version`` in ``src-tauri/tauri.conf.json`` to ship a new one."
+            Write-Host $note
+            $note >> $env:GITHUB_STEP_SUMMARY
+          } else {
+            "publish=true" >> $env:GITHUB_OUTPUT
+            Write-Host "$tag is new; building it"
+          }
+
+      # ---- everything below only runs when there is something to release ----
+
+      - name: Rust
+        if: steps.check.outputs.publish == 'true'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+          components: clippy, rustfmt
+
+      - name: Cache the Rust build
+        if: steps.check.outputs.publish == 'true'
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+
+      - name: pnpm
+        if: steps.check.outputs.publish == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Node
+        if: steps.check.outputs.publish == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: ui/pnpm-lock.yaml
+
+      - name: Install the front-end dependencies
+        if: steps.check.outputs.publish == 'true'
+        run: pnpm --dir ui install --frozen-lockfile
+
+      # A broken build must not become a published installer, so the same checks
+      # that run locally run here, before anything is bundled.
+      - name: Check formatting
+        if: steps.check.outputs.publish == 'true'
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        if: steps.check.outputs.publish == 'true'
+        run: cargo clippy -p mino-core -p mino-win -p mino-shell -p mino-cli --all-targets -- -D warnings
+
+      - name: Tests
+        if: steps.check.outputs.publish == 'true'
+        run: cargo test -p mino-core -p mino-shell
+
+      - name: Typecheck the front end
+        if: steps.check.outputs.publish == 'true'
+        run: pnpm --dir ui typecheck
+
+      # Builds the app and publishes the release with the installer attached.
+      # `--bundles nsis` produces the .exe installer only; add `msi` here if a
+      # managed-deployment package is ever wanted too.
+      - name: Build and publish
+        if: steps.check.outputs.publish == 'true'
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ steps.version.outputs.tag }}
+          releaseName: Mino Win Style ${{ steps.version.outputs.version }}
+          releaseBody: |
+            Windows 11 installer, built from `main` at ${{ github.sha }}.
+
+            Download `Mino Win Style_${{ steps.version.outputs.version }}_x64-setup.exe` below. It installs
+            for the current user, so there is no administrator prompt.
+
+            **The installer is not code-signed.** Windows SmartScreen will say
+            "Windows protected your PC" — choose **More info**, then
+            **Run anyway**. Signing is the fix, and is not set up yet.
+          releaseDraft: false
+          prerelease: false
+          args: --bundles nsis
+
+      - name: Say what shipped
+        if: steps.check.outputs.publish == 'true'
+        shell: pwsh
+        run: |
+          "Published **${{ steps.version.outputs.tag }}** with the NSIS installer attached." >> $env:GITHUB_STEP_SUMMARY
