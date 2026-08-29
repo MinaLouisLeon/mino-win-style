@@ -33,7 +33,11 @@ fn main() {
             t.uptime_seconds / 3600,
             (t.uptime_seconds % 3600) / 60,
             match t.battery {
-                Some(b) => format!("{}%{}", b.percent, if b.charging { " charging" } else { "" }),
+                Some(b) => format!(
+                    "{}%{}",
+                    b.percent,
+                    if b.charging { " charging" } else { "" }
+                ),
                 None => "none".into(),
             }
         );
