@@ -110,8 +110,8 @@ needs two things to be known:
 
 - **The `dlltool` bundled with rustup's GNU toolchain has no assembler beside
   it**, so any crate using `raw-dylib` import libraries fails to compile. Put a
-  complete MinGW `bin` on `PATH` — on this machine
-  `C:\nuwb-toolchain\mingw64\bin` — and it works.
+  complete MinGW's `bin` directory on `PATH` — one that has `as.exe` next to
+  `dlltool.exe` — and it works.
 
   Two dependencies were dropped before that was understood: `chrono` from
   `mino-core` (it brings in `windows-link`) and `clap`'s `color` feature (it
@@ -119,9 +119,10 @@ needs two things to be known:
   but both should. Losing `chrono` is what makes `mino-core`'s "no OS
   dependency" claim literally true, and a recovery CLI whose output gets piped
   into a log is better off without colour codes.
-- **`windres` breaks on spaces in paths**, and this checkout lives under
-  `C:\Users\Mina Louis\…`. Building `src-tauri` on GNU therefore needs a
-  space-free target directory:
+- **`windres` breaks on spaces in paths.** A Windows user folder with a space in
+  it is enough to trigger it. Building `src-tauri` on GNU then needs a
+  space-free target directory, which the 8.3 short name provides without moving
+  anything:
 
   ```powershell
   $fso = New-Object -ComObject Scripting.FileSystemObject
