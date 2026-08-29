@@ -162,3 +162,41 @@ underneath it rather than behind it, switching it off gives the space back
 immediately, killing the process and running `mino shell-reset` gives the space
 back too, restarting Explorer leaves the strip still reserved, and the app name
 in the bar does not change to *Mino* when clicked.
+
+## What shipped, where it differs from the above
+
+**The gate was not met.** The HUD has still never run on a real machine, and
+this phase was built anyway at the user's direction. Nothing here has been seen
+working: `mino-shell` compiles and its arithmetic is unit-tested, but no
+`SHAppBarMessage` call in this repository has ever been made. Phase 6 is now
+carrying the HUD's smoke test *and* every appbar question at once, which is
+exactly the situation the gate existed to avoid — when the bar misbehaves, the
+overlay's three unverified assumptions are still in the frame.
+
+- **`SetWindowSubclass`, which the plan did not name.** The plan said to
+  register for `TaskbarCreated` without saying how a Tauri window would ever see
+  it. It cannot: Tauri exposes no window procedure. The bar's own window is
+  subclassed instead, forwarding everything to `DefSubclassProc` — documented,
+  on a window we own, and the same hook picks up `ABN_POSCHANGED`. A hidden
+  proxy window was the alternative and was rejected: an appbar whose window is
+  never visible is not a shape Windows documents.
+- **The HWND crosses into `mino-shell` as an `isize`.** Tauri builds against
+  `windows` 0.61 and this workspace pins 0.58, so the two `HWND` types are not
+  the same type. `window.hwnd()?.0 as isize` is the line most likely to need a
+  nudge on a machine that can actually compile `src-tauri`.
+- **The bar's menu is Settings and Quit, not a second copy of the app.** The
+  plan listed the Looks picker and the dock and bar switches as menu items.
+  Every one of those already exists in the settings window, and a second copy of
+  a control is a second thing to keep true — so the menu opens the window that
+  has them.
+- **The window commands are the dock's.** `dock_minimize`,
+  `dock_toggle_maximize` and `dock_close` are one line each into `mino-shell`
+  and have nothing to do with docks; the bar calls them rather than adding three
+  identical commands under a different prefix.
+- **`describe()` now filters our own windows by process id**, not by matching
+  the executable name — which is what makes `foreground()` able to tell "the
+  user clicked the bar" from "the user switched application". The dock inherits
+  the better filter.
+- **The bar has its own switch on Home**, like the dock's. It had to: no Look
+  wears the bar until Phase 3, so without a switch there would be no way to see
+  it at all.

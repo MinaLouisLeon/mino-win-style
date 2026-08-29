@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mino Bar</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <!--
+      Same reason as the dock's: this window has no console and no reachable
+      devtools, so anything that goes wrong here is otherwise invisible. It runs
+      before the bundle and reports through the IPC directly, which is also the
+      only way to catch a failure in the bundle itself. `dock_trace` is reused
+      rather than duplicated — one log file for the surfaces is easier to read
+      than three.
+    -->
+    <script>
+      (function () {
+        function say(line) {
+          try {
+            window.__TAURI_INTERNALS__.invoke("dock_trace", { line: "topbar: " + line });
+          } catch (e) {
+            /* nothing left to report it with */
+          }
+        }
+        say("inline script ran; ipc=" + !!window.__TAURI_INTERNALS__);
+        window.addEventListener("error", function (e) {
+          say("page error: " + e.message + " @ " + e.filename + ":" + e.lineno);
+        });
+        window.addEventListener("unhandledrejection", function (e) {
+          say("unhandled rejection: " + e.reason);
+        });
+      })();
+    </script>
+    <script type="module" src="/src/topbar/main.tsx"></script>
+  </body>
+</html>

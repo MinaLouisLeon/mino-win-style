@@ -3,6 +3,7 @@ pub mod dock;
 pub mod packs;
 pub mod shell_look;
 pub mod state;
+pub mod top_bar;
 
 use state::AppState;
 
@@ -60,6 +61,11 @@ pub fn run() {
             shell_look::shell_set_look,
             shell_look::shell_set_options,
             shell_look::shell_telemetry,
+            top_bar::top_bar_config,
+            top_bar::top_bar_set_enabled,
+            top_bar::top_bar_foreground,
+            top_bar::top_bar_open_settings,
+            top_bar::top_bar_quit,
         ])
         .setup(|app| {
             // The window is built here, on the main thread, whether or not the
@@ -86,8 +92,32 @@ pub fn run() {
             if shell.active.is_some() {
                 shell_look::apply_surfaces(&handle, &shell);
             }
+
+            // And the bar. Same rule again — built here, shown only if asked
+            // for — with the difference that showing it reserves a strip of the
+            // desktop, which is why the exit handler below exists.
+            let bar = top_bar::TopBarConfig::load();
+            if let Err(err) = top_bar::create(&handle) {
+                dock::trace(&format!("bar create() failed: {err}"));
+            }
+            if bar.enabled {
+                if let Err(err) = top_bar::show(&handle) {
+                    dock::trace(&format!("bar show() failed: {err}"));
+                }
+            }
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("failed to start the Mino Win Style window");
+        .build(tauri::generate_context!())
+        .expect("failed to start the Mino Win Style window")
+        .run(|_app, event| {
+            // The strip the bar reserved has to be handed back, and this is the
+            // last place it can be. An appbar left registered leaves a band of
+            // dead screen that survives a reboot with nothing on it to say why
+            // — the worst thing this program can do to a machine. The window's
+            // own WM_NCDESTROY unregisters too; this catches the exits that do
+            // not go through one.
+            if matches!(event, tauri::RunEvent::Exit) {
+                mino_shell::appbar::unregister();
+            }
+        });
 }

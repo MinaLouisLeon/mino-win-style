@@ -6,6 +6,7 @@ import type {
   LookInfo,
   OsBuild,
   ShellConfig,
+  TopBarConfig,
   TweakState,
 } from "../lib/api";
 import { LookPanel } from "../components/LookPanel";
@@ -18,6 +19,8 @@ interface Props {
   journalDir: string;
   dock: DockConfig | null;
   onDockChange: (enabled: boolean) => void;
+  bar: TopBarConfig | null;
+  onBarChange: (enabled: boolean) => void;
   shell: ShellConfig | null;
   looks: LookInfo[];
   onLookChange: (id: LookId | null) => void;
@@ -35,6 +38,8 @@ export function Home({
   journalDir,
   dock,
   onDockChange,
+  bar,
+  onBarChange,
   shell,
   looks,
   onLookChange,
@@ -129,6 +134,21 @@ export function Home({
           <span>{t("dock.show")}</span>
         </label>
         <p className="muted small">{t("dock.note")}</p>
+      </section>
+
+      <section className="panel">
+        <h2>{t("bar.title")}</h2>
+        <p className="muted">{t("bar.body")}</p>
+        <label className="dock-toggle">
+          <input
+            type="checkbox"
+            checked={bar?.enabled ?? false}
+            disabled={!bar}
+            onChange={(e) => onBarChange(e.target.checked)}
+          />
+          <span>{t("bar.show")}</span>
+        </label>
+        <p className="muted small">{t("bar.note")}</p>
       </section>
 
       <section className="panel">

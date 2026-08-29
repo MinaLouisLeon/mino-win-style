@@ -17,6 +17,7 @@ import {
   type LookId,
   type LookInfo,
   type ShellConfig,
+  type TopBarConfig,
   type OsBuild,
   type PackSummary,
   type Plan,
@@ -38,6 +39,7 @@ export default function App() {
   const [journalDir, setJournalDir] = useState("");
   const [packs, setPacks] = useState<PackSummary[]>([]);
   const [dock, setDock] = useState<DockConfig | null>(null);
+  const [bar, setBar] = useState<TopBarConfig | null>(null);
   const [shell, setShell] = useState<ShellConfig | null>(null);
   /** The registry of Looks, from Rust. The UI keeps no list of its own. */
   const [looks, setLooks] = useState<LookInfo[]>([]);
@@ -52,7 +54,7 @@ export default function App() {
   const [message, setMessage] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    const [osInfo, list, history, dir, packList, dockConfig, shellConfig, lookList] =
+    const [osInfo, list, history, dir, packList, dockConfig, barConfig, shellConfig, lookList] =
       await Promise.all([
         api.osInfo(),
         api.listTweaks(),
@@ -60,6 +62,7 @@ export default function App() {
         api.journalDir(),
         api.listPacks(),
         api.dockConfig(),
+        api.topBarConfig(),
         api.shellConfig(),
         api.shellLooks(),
       ]);
@@ -69,6 +72,7 @@ export default function App() {
     setJournalDir(dir);
     setPacks(packList);
     setDock(dockConfig);
+    setBar(barConfig);
     setShell(shellConfig);
     setLooks(lookList);
   }, []);
@@ -338,6 +342,14 @@ export default function App() {
             onDockChange={async (enabled) => {
               try {
                 setDock(await api.dockSetEnabled(enabled));
+              } catch (err) {
+                setMessage(String(err));
+              }
+            }}
+            bar={bar}
+            onBarChange={async (enabled) => {
+              try {
+                setBar(await api.topBarSetEnabled(enabled));
               } catch (err) {
                 setMessage(String(err));
               }

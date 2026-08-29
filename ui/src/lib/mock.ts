@@ -139,6 +139,7 @@ const current = new Map<string, Value>(defs.map((d) => [d.id, d.value]));
 const entries: JournalEntry[] = [];
 let mockDockEnabled = false;
 let mockShell: ShellConfig = { ...SHELL_DEFAULTS };
+let mockTopBar = false;
 
 /** The registry, as Rust would have sent it. Kept in step with `LOOKS` in
  *  `src-tauri/src/shell_look.rs` by hand, like the tweak list above. */
@@ -333,6 +334,14 @@ export const mockApi: Api = {
   dockSetEnabled: (enabled) => {
     mockDockEnabled = enabled;
     return wait({ enabled, pinned: [], icon_size: 48 });
+  },
+
+  // In a browser tab the bar is a page you can open, not a strip that reserves
+  // anything: there is no desktop here to take a slice out of.
+  topBarConfig: () => wait({ enabled: mockTopBar, height: 28 }),
+  topBarSetEnabled: (enabled) => {
+    mockTopBar = enabled;
+    return wait({ enabled, height: 28 });
   },
 
   // A Look in a browser tab is the skin and nothing else: there is no second

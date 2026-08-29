@@ -1,0 +1,236 @@
+/*
+ * The bar window is transparent like the other two, but it is the one surface
+ * that fills its window completely: the strip is reserved space, so every pixel
+ * of it is ours and none of it should be see-through in a way that makes the
+ * text underneath fight the text on top.
+ *
+ * It is also the only surface with no Look of its own yet. Cupertino and Yaru
+ * are what it is for, and until they land this is a plain Fluent strip that
+ * reads on a light desktop and a dark one — plus the JARVIS block at the
+ * bottom, so someone who has that Look on and switches the bar on does not get
+ * a Fluent strip over an instrument panel.
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  font-size: 12.5px;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#root {
+  height: 100%;
+}
+
+:root {
+  --bar-bg: rgba(243, 244, 248, 0.86);
+  --bar-ink: #14171d;
+  --bar-dim: #5b6472;
+  --bar-line: rgba(0, 0, 0, 0.12);
+  --bar-hover: rgba(0, 0, 0, 0.07);
+  --bar-danger: #c42b1c;
+  --bar-radius: 6px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bar-bg: rgba(24, 26, 33, 0.88);
+    --bar-ink: #e9eef7;
+    --bar-dim: #9aa6b8;
+    --bar-line: rgba(255, 255, 255, 0.12);
+    --bar-hover: rgba(255, 255, 255, 0.1);
+    --bar-danger: #ff6b6b;
+  }
+}
+
+.bar {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-inline: 8px;
+  background: var(--bar-bg);
+  color: var(--bar-ink);
+  border-block-end: 1px solid var(--bar-line);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+}
+
+.bar__side {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.bar__side--end {
+  gap: 10px;
+}
+
+/* The app's mark, at the size a bar allows. */
+.bar__mark {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(140deg, #4f8ef7, #0f62c0);
+  flex: none;
+}
+
+.bar__app {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 32vw;
+}
+
+.bar__commands {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-inline-start: 4px;
+}
+
+.bar__btn {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: var(--bar-radius);
+  padding: 2px 7px;
+  line-height: 1.4;
+  cursor: default;
+}
+
+.bar__btn:hover {
+  background: var(--bar-hover);
+}
+
+.bar__btn:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+}
+
+.bar__btn--close:hover {
+  background: var(--bar-danger);
+  color: #fff;
+}
+
+/* Visible to a screen reader, and to nothing else. The glyphs on the buttons
+   are decoration; this is what they actually say. */
+.bar__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.bar__net,
+.bar__battery {
+  color: var(--bar-dim);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.bar__battery[data-low] {
+  color: var(--bar-danger);
+}
+
+.bar__clock {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.bar__menu-wrap {
+  position: relative;
+}
+
+/* Hangs below the strip. The bar is the topmost window, so the menu is drawn
+   inside it rather than in a window of its own. */
+.bar__menu {
+  position: absolute;
+  inset-block-start: calc(100% + 4px);
+  inset-inline-end: 0;
+  min-width: 150px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bar-bg);
+  border: 1px solid var(--bar-line);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  z-index: 2;
+}
+
+.bar__item {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: var(--bar-radius);
+  padding: 6px 10px;
+  text-align: start;
+  cursor: default;
+}
+
+.bar__item:hover {
+  background: var(--bar-hover);
+}
+
+/* ---------------- JARVIS ----------------
+ *
+ * The same strip as an instrument reading. The bar window has its own page and
+ * so its own `:root`; Rust broadcasts the Look and `lib/shell-look.ts` sets the
+ * attribute here exactly as it does in the settings window.
+ */
+
+:root[data-theme="jarvis"] {
+  --bar-bg: rgba(4, 16, 25, 0.82);
+  --bar-ink: #eaf9ff;
+  --bar-dim: #6fe3ff;
+  --bar-line: rgba(111, 227, 255, 0.28);
+  --bar-hover: rgba(111, 227, 255, 0.16);
+  --bar-danger: #ff6b6b;
+  --bar-radius: 2px;
+}
+
+:root[data-theme="jarvis"] .bar {
+  font-family: "Cascadia Mono", Consolas, ui-monospace, monospace;
+  letter-spacing: 0.06em;
+  border-block-end-color: var(--bar-line);
+  box-shadow: 0 1px 0 rgba(111, 227, 255, 0.12);
+}
+
+:root[data-theme="jarvis"] .bar__app {
+  text-transform: uppercase;
+  color: #6fe3ff;
+  text-shadow: 0 0 8px rgba(111, 227, 255, 0.4);
+}
+
+:root[data-theme="jarvis"] .bar__mark {
+  border-radius: 50%;
+  background: radial-gradient(circle, #d6f7ff 18%, rgba(111, 227, 255, 0.5) 34%, transparent 62%);
+  border: 1px solid #6fe3ff;
+}
+
+:root[data-theme="jarvis"] .bar__menu {
+  border-radius: 3px;
+}

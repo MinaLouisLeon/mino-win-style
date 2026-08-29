@@ -123,6 +123,13 @@ export interface DockConfig {
   icon_size: number;
 }
 
+/** The bar, likewise. `height` is logical pixels, and it is what gets reserved
+ *  out of the desktop — which is why Rust clamps it rather than trusting it. */
+export interface TopBarConfig {
+  enabled: boolean;
+  height: number;
+}
+
 export interface OsBuild {
   build: number;
   ubr: number;
@@ -145,6 +152,8 @@ export interface Api {
   applyPack(dir: string): Promise<ApplyReport>;
   dockConfig(): Promise<DockConfig>;
   dockSetEnabled(enabled: boolean): Promise<DockConfig>;
+  topBarConfig(): Promise<TopBarConfig>;
+  topBarSetEnabled(enabled: boolean): Promise<TopBarConfig>;
   shellConfig(): Promise<ShellConfig>;
   /** The registry: every Look this build has. The UI keeps no copy of it. */
   shellLooks(): Promise<LookInfo[]>;
@@ -188,6 +197,8 @@ function tauriApi(): Api {
     applyPack: (dir) => invoke<ApplyReport>("apply_pack", { dir }),
     dockConfig: () => invoke<DockConfig>("dock_config"),
     dockSetEnabled: (enabled) => invoke<DockConfig>("dock_set_enabled", { enabled }),
+    topBarConfig: () => invoke<TopBarConfig>("top_bar_config"),
+    topBarSetEnabled: (enabled) => invoke<TopBarConfig>("top_bar_set_enabled", { enabled }),
     shellConfig: () => invoke<ShellConfig>("shell_config"),
     shellLooks: () => invoke<LookInfo[]>("shell_looks"),
     shellSetLook: (id) => invoke<ShellConfig>("shell_set_look", { id }),

@@ -45,8 +45,50 @@ Turn it on from the app's Home screen. Settings live in
 `%LOCALAPPDATA%\mino-win-style\dock.json`, which is also where the pinned list
 is kept — there is no drag-to-pin yet.
 
-Still to come: pinning from the dock itself, a menu bar, a launcher, per-monitor
-placement, and replacing the 1.2-second poll with `SetWinEventHook`.
+Still to come: pinning from the dock itself, a launcher, per-monitor placement,
+and replacing the 1.2-second poll with `SetWinEventHook`.
+
+## The bar
+
+The third surface, and the first that does not sit *on* the desktop but takes a
+piece of it: a strip across the top of the primary monitor carrying the name of
+whatever you are working in, the window buttons, and a clock.
+
+A dock at the bottom can float, because a maximized window going under it costs
+nothing. A bar across the top cannot — a maximized window would put its own
+title bar and close button underneath ours, where they cannot be reached. So
+Windows is asked to keep the strip through the appbar protocol
+(`SHAppBarMessage`), the same one the taskbar uses, and everything maximizes
+below it.
+
+**What it cannot show is another application's menus.** There is no supported
+way to read the File/Edit/View of an arbitrary window from outside its process,
+and this project does not go inside one. So the bar carries the focused
+application's name, the three window commands we genuinely implement — minimise,
+maximise, close — and our own menu. Greyed-out menus that did nothing would be
+the one dishonest thing in this app.
+
+Two things it has to hear about or the reservation quietly stops being true, and
+both arrive as window messages rather than as anything that could be polled for:
+`TaskbarCreated`, which Explorer broadcasts after a restart having destroyed
+every appbar on the way (applying a Look restarts Explorer, so this is a normal
+event here, not a rare one), and `ABN_POSCHANGED`, which says our rectangle has
+moved. Hearing them means `SetWindowSubclass` on **our own window**, forwarding
+everything to `DefSubclassProc` — nothing hooked, nothing injected, no other
+process touched.
+
+**The hazard is worth stating plainly.** An appbar that is registered and never
+removed leaves a band of dead screen that survives a reboot with nothing on it to
+explain itself. Removal is wired to the switch, to the window being destroyed and
+to the process exiting; for the case where all three were missed there is
+`mino shell-reset`, which does not need the app to start. See
+[Recovery](#recovery).
+
+Turn it on from the app's Home screen. Settings live in
+`%LOCALAPPDATA%\mino-win-style\topbar.json`.
+
+Still to come: the Cupertino and Yaru layouts that the bar exists for, and
+per-monitor placement — like the dock, it is the primary monitor only.
 
 ## JARVIS mode
 
@@ -129,7 +171,8 @@ crates/
   mino-cli/    `mino` — headless apply/revert, and the safe-restore path
 src-tauri/     Tauri 2 shell: commands, window, bundler config
 ui/            React 19 + TypeScript + Vite, English and Arabic with real RTL
-                 three pages, one per window: index.html, dock.html, hud.html
+                 four pages, one per window: index.html, dock.html, hud.html,
+                 topbar.html
 packs/         style packs (`manifest.json` + assets)
 ```
 
@@ -243,9 +286,19 @@ refuses to run without `icon.ico`. Regenerate with
   full-screen placement over the taskbar, and whether a transparent
   always-on-top overlay behaves itself in front of real windows are all
   untested outside the browser.
+- **Nothing about the bar has run.** `mino-shell`'s half of it compiles and its
+  arithmetic is unit-tested, but no `SHAppBarMessage` call in this repository
+  has ever been made: whether the strip is granted, whether a maximized window
+  really stops below it, whether the subclass sees `TaskbarCreated` when
+  Explorer restarts, and whether `mino shell-reset` recovers a reservation left
+  behind by a killed process are all untested. The last of those is the one to
+  check first, because it is the recovery for every other way this can go
+  wrong.
 - Suggested first VM run: `mino --dry-run apply`, then `mino apply`, then
   compare against `mino history` and `mino safe-restore`, checking with
-  `reg export` before and after that the revert really is byte-exact.
+  `reg export` before and after that the revert really is byte-exact. Then the
+  bar: switch it on, maximize a window against it, kill the app from Task
+  Manager, and check `mino shell-reset` gives the strip back.
 
 ## Testing
 
@@ -267,9 +320,19 @@ previous values.
 mino history                 # what has been changed
 mino revert <id>             # undo one batch
 mino safe-restore            # undo the most recent batch
+mino shell-reset             # give the desktop its full work area back
 ```
 
 `mino safe-restore` deliberately does not depend on the app starting.
+
+`mino shell-reset` is for one specific failure: the bar reserves a strip at the
+top of the screen, and if this program is killed before it can hand that strip
+back, the space stays reserved — a band of dead screen with nothing on it to say
+why. This clears it. It clears *every* reservation, the taskbar's included, so
+windows may maximize under the taskbar until Explorer takes its own back;
+restarting Explorer, or signing out and in, does that. It touches no registry
+value and no journal entry, and it runs before the engine is even built, so a
+broken registry or an unsupported build of Windows cannot stop it.
 
 ## Licence
 
