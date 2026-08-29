@@ -31,6 +31,10 @@ interface I18nValue {
 
 const I18nContext = createContext<I18nValue | null>(null);
 
+/** What the app opens in before anyone has chosen. English, deliberately:
+ *  Arabic is a choice the user makes, not one the app makes for them. */
+const DEFAULT_LANG: Lang = "en";
+
 function stored(): Lang {
   try {
     const saved = localStorage.getItem("mws-lang");
@@ -38,7 +42,7 @@ function stored(): Lang {
   } catch {
     // Private windows and locked-down profiles throw here; the default is fine.
   }
-  return "ar";
+  return DEFAULT_LANG;
 }
 
 export function I18nProvider({ children }: { children: ReactNode }) {

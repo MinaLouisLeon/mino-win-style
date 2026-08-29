@@ -48,6 +48,64 @@ is kept — there is no drag-to-pin yet.
 Still to come: pinning from the dock itself, a menu bar, a launcher, per-monitor
 placement, and replacing the 1.2-second poll with `SetWinEventHook`.
 
+## JARVIS mode
+
+The second thing `mino-shell` draws, and the first that uses all three layers at
+once. One switch on the Home screen, and:
+
+- **A HUD over the desktop.** A full-screen, transparent, always-on-top window
+  of our own: corner brackets, a turning arc reactor, a scanning sweep, a clock,
+  and live readouts of processor, memory, disk, network, battery and uptime. It
+  powers up with a boot sequence and powers down like a CRT going out.
+- **The same skin on the app and the dock.** `data-theme="jarvis"` over the CSS
+  variables the stylesheets already read — cyan on black, monospace readouts,
+  hairline brackets on every panel. Nothing is replaced, so switching the mode
+  off restores the Fluent look exactly, with nothing to undo.
+- **The JARVIS Look, offered.** `packs/jarvis/` sets a cyan accent, dark mode,
+  transparency, an arc-reactor wallpaper and a taskbar that gets out of the way.
+  It is *offered*, not applied: turning the switch on opens the same
+  confirmation screen as any other change, and declining it leaves the overlay
+  and the skin running with the desktop untouched.
+
+**The overlay is click-through.** `WS_EX_TRANSPARENT`, set through Tauri's
+`set_ignore_cursor_events`, so every click, scroll and hover passes to whatever
+is underneath. This is the line the whole feature rests on: a full-screen
+always-on-top window without it swallows every click on the desktop, and the
+machine becomes unusable in a way that looks exactly like a crash.
+
+Being always on top, it also draws over anything that goes full-screen — a game,
+a video, a presentation. That is what "over everything" means; switch it off
+first.
+
+### The readouts
+
+`mino-shell::Sampler` reads six documented kernel calls — `GetSystemTimes`,
+`GlobalMemoryStatusEx`, `GetDiskFreeSpaceExW`, `GetIfTable2`, `GetTickCount64`
+and `GetSystemPowerStatus` — once a second. No new dependency: `sysinfo` would
+have brought a second copy of `windows-sys` along to do what those six already
+do. Processor load and network throughput are rates, so the sampler keeps the
+previous reading; the first tick after a start reports zero and primes itself.
+
+    cargo run -p mino-shell --example telemetry
+
+prints five seconds of it without drawing anything.
+
+### The voice
+
+Off by default, and deliberately: a machine that starts talking on its own in a
+meeting is a bug whatever the intent. Switched on, the greeting is spoken with
+the SAPI voice Windows already has (through the Web Speech API) and the
+interface blips are oscillators drawn as they play. No audio files ship, nothing
+is downloaded, and it works offline.
+
+The sound lives in the **settings window**, not the HUD. The HUD is
+click-through and never takes focus, so nothing in it can ever be the user
+gesture a browser requires before it will play audio — the click that turns the
+mode on happens in the settings window, which is the only place that has one.
+Rust's `jarvis-mode` event starts both at the same moment, so they stay in step.
+
+Preferences live in `%LOCALAPPDATA%\mino-win-style\jarvis.json`.
+
 ## Why it is built this way
 
 - **Reversible by construction.** No change is applied before its previous value
@@ -71,6 +129,7 @@ crates/
   mino-cli/    `mino` — headless apply/revert, and the safe-restore path
 src-tauri/     Tauri 2 shell: commands, window, bundler config
 ui/            React 19 + TypeScript + Vite, English and Arabic with real RTL
+                 three pages, one per window: index.html, dock.html, hud.html
 packs/         style packs (`manifest.json` + assets)
 ```
 
@@ -130,6 +189,16 @@ needs two things to be known:
   cargo build -p mino-win-style
   ```
 
+  The other half of the same problem is `windres` not being on `PATH` at all,
+  which fails differently and less helpfully: `tauri-winres` panics with
+  `NotAttempted("windres")` from inside a build script, so it reads as a broken
+  dependency rather than a missing tool. Both are the same fix — put a complete
+  MinGW `bin` on `PATH` before building `src-tauri`:
+
+  ```powershell
+  $env:PATH = "C:\path\to\mingw64\bin;$env:PATH"
+  ```
+
   MSVC does not use `windres` at all, so this disappears with the intended
   toolchain.
 
@@ -156,6 +225,12 @@ refuses to run without `icon.ico`. Regenerate with
   carry `0xFF` in the high byte (not `0x00`), the `AccentPalette` ramp puts the
   base at index 3, and the eighth entry is an unrelated colour that we now
   preserve instead of overwriting.
+- **The HUD's telemetry reads a real machine.** `cargo run -p mino-shell
+  --example telemetry` returns correct processor, memory, disk, network,
+  uptime and battery figures on Windows 11 25H2.
+- The HUD, the app skin and the dock skin were driven in a browser against the
+  mock, in both languages, and checked over a white background as well as a dark
+  one — which is what the patch of shade under each group of HUD text is for.
 
 **Not verified — this is what the VM is for**
 
@@ -164,7 +239,10 @@ refuses to run without `icon.ico`. Regenerate with
   actually repainting the shell, and the Explorer restart are all untested
   outside the fakes.
 - The Tauri window has never been opened. It compiles; nobody has watched it
-  start.
+  start. That now includes the HUD window: the click-through call, the
+  full-screen placement over the taskbar, and whether a transparent
+  always-on-top overlay behaves itself in front of real windows are all
+  untested outside the browser.
 - Suggested first VM run: `mino --dry-run apply`, then `mino apply`, then
   compare against `mino history` and `mino safe-restore`, checking with
   `reg export` before and after that the revert really is byte-exact.

@@ -1,4 +1,12 @@
-import type { Category as Cat, DockConfig, JournalEntry, OsBuild, TweakState } from "../lib/api";
+import type {
+  Category as Cat,
+  DockConfig,
+  JarvisConfig,
+  JournalEntry,
+  OsBuild,
+  TweakState,
+} from "../lib/api";
+import { JarvisPanel } from "../components/JarvisPanel";
 import { useI18n } from "../i18n";
 
 interface Props {
@@ -8,6 +16,9 @@ interface Props {
   journalDir: string;
   dock: DockConfig | null;
   onDockChange: (enabled: boolean) => void;
+  jarvis: JarvisConfig | null;
+  onJarvisChange: (enabled: boolean) => void;
+  onJarvisOptions: (options: { sound?: boolean; telemetry?: boolean; address?: string }) => void;
   onRevertAll: () => void;
   onOpenCategory: (category: Cat) => void;
 }
@@ -21,6 +32,9 @@ export function Home({
   journalDir,
   dock,
   onDockChange,
+  jarvis,
+  onJarvisChange,
+  onJarvisOptions,
   onRevertAll,
   onOpenCategory,
 }: Props) {
@@ -90,6 +104,12 @@ export function Home({
           );
         })}
       </section>
+
+      <JarvisPanel
+        config={jarvis}
+        onEnabledChange={onJarvisChange}
+        onOptionsChange={onJarvisOptions}
+      />
 
       <section className="panel">
         <h2>{t("dock.title")}</h2>

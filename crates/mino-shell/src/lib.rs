@@ -9,6 +9,8 @@
 use serde::Serialize;
 
 #[cfg(windows)]
+mod telemetry;
+#[cfg(windows)]
 mod windows_impl;
 
 /// A top-level window worth showing on a dock.
@@ -39,9 +41,38 @@ pub struct WorkArea {
     pub height: i32,
 }
 
+/// What the machine is doing right now, for the HUD to draw.
+///
+/// Raw units throughout — bytes, seconds, bytes per second — because the page
+/// knows how it wants to write them and Rust guessing at "1.2 GB" would put a
+/// formatting decision, and an untranslatable one, in the wrong layer.
+#[derive(Debug, Clone, Serialize)]
+pub struct Telemetry {
+    /// 0–100 across all cores, averaged over the interval since the last read.
+    pub cpu_percent: f32,
+    pub memory_used_bytes: u64,
+    pub memory_total_bytes: u64,
+    pub disk_used_bytes: u64,
+    pub disk_total_bytes: u64,
+    pub net_down_bps: f64,
+    pub net_up_bps: f64,
+    pub uptime_seconds: u64,
+    /// `None` on a machine with no battery.
+    pub battery: Option<Battery>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize)]
+pub struct Battery {
+    pub percent: u8,
+    pub charging: bool,
+}
+
+#[cfg(windows)]
+pub use telemetry::Sampler;
 #[cfg(windows)]
 pub use windows_impl::{
-    activate, close, icon_rgba, is_maximized, launch, minimize, toggle_maximize, windows, work_area,
+    activate, close, icon_rgba, is_maximized, launch, minimize, screen_area, toggle_maximize,
+    windows, work_area,
 };
 
 /// One entry on the dock: an application, whether or not it is running.

@@ -1,29 +1,23 @@
 {
   "app.name": "مينو وين ستايل",
   "app.tagline": "غيّر شكل ويندوز — وأرجِعه كما كان.",
-
   "nav.home": "الرئيسية",
   "nav.appearance": "المظهر",
   "nav.taskbar": "شريط المهام",
   "nav.start": "قائمة ابدأ",
   "nav.explorer": "مستكشف الملفات",
   "nav.history": "السجلّ",
-
   "lang.switch": "English",
-
   "common.on": "مفعّل",
   "common.off": "معطّل",
-
   "nav.looks": "المظاهر الجاهزة",
   "nav.desktop": "سطح المكتب",
-
   "looks.subtitle": "سطح مكتب كامل بخطوة واحدة، مع عرض كل تغيير قبل وقوعه كالعادة.",
   "looks.none": "لا توجد مظاهر جاهزة بجوار التطبيق.",
   "looks.apply": "طبّق هذا المظهر",
   "looks.unsupported": "لا يناسب هذا الإصدار",
   "looks.settings": "{n} إعدادًا",
   "looks.revertNote": "تطبيق مظهر جاهز يُسجَّل كبند واحد في السجلّ، فيكفي «تراجَع» واحد لإرجاعه كله.",
-
   "tweak.desktop.wallpaper.name": "خلفية سطح المكتب",
   "tweak.desktop.wallpaper.desc": "تضبطها المظاهر الجاهزة حاليًا، واختيار ملف بنفسك يأتي مع نافذة اختيار الملفات.",
   "tweak.desktop.wallpaper_fit.name": "طريقة ملء الشاشة",
@@ -42,7 +36,6 @@
   "home.revertAllHint": "يتراجع عن كل ما فعله هذا التطبيق، بدءًا من الأحدث.",
   "home.mock": "وضع العرض: نواة Rust غير مشغّلة، وهذه القيم محاكاة.",
   "home.available": "الإعدادات المتاحة هنا",
-
   "dock.title": "شريط الإرساء",
   "dock.body": "شريط إرساء من صنعنا يُرسم فوق سطح المكتب، إذ لا يملك ويندوز واحدًا لنغيّر شكله. يعرض ما يعمل الآن وما تثبّته، والنقر على أيقونة يُحضر نافذتها إلى الأمام.",
   "dock.show": "أظهر شريط الإرساء",
@@ -51,7 +44,6 @@
   "changes.pendingPlural": "{n} تغييرات لم تُطبَّق",
   "changes.review": "مراجعة وتطبيق",
   "changes.discard": "تجاهل",
-
   "plan.title": "التغييرات التي ستُجرى",
   "plan.none": "لا شيء ليتغيّر — الوضع الحالي هو المطلوب بالفعل.",
   "plan.skipped": "مُتخطّى",
@@ -61,12 +53,10 @@
   "plan.apply": "تطبيق",
   "plan.cancel": "إلغاء",
   "plan.applying": "جارٍ التطبيق…",
-
   "restart.title": "إعادة تشغيل مستكشف الملفات؟",
   "restart.body": "سيختفي سطح المكتب وشريط المهام للحظة ثم يعودان. النوافذ المفتوحة لن تتأثر.",
   "restart.yes": "أعد التشغيل",
   "restart.later": "ليس الآن",
-
   "history.title": "ما فعله هذا التطبيق",
   "history.empty": "لا شيء بعد. أول ما تطبّق شيئًا سيظهر هنا، ومعه طريق العودة.",
   "history.revert": "تراجَع",
@@ -77,18 +67,15 @@
   "history.status.rolled_back": "تم التراجع تلقائيًا",
   "history.status.reverted": "أُرجِع",
   "history.safeRestore": "إن تعذّر تشغيل التطبيق يومًا، شغّل: mino safe-restore",
-
   "tier.b": "إعداد غير موثّق — قد يغيّره تحديث ويندوز أو يتجاهله.",
   "support.unsupported": "غير متاح على إصدار ويندوز هذا",
   "error.read": "تعذّرت قراءة هذا الإعداد",
-
   "support.note.needs_newer_build": "يحتاج إصدارًا أحدث من ويندوز 11.",
   "support.note.changed_in_later_build": "غيّر ويندوز هذا الإعداد في إصدار لاحق.",
   "support.note.dark_mode_only": "لا يظهر أثره إلا والوضع الداكن مفعّل.",
   "support.note.system_files": "يُظهر ملفات النظام. مفيد للتشخيص، وسهل أن تُفسد به شيئًا.",
   "support.note.dev_end_task": "يوازي خيار «إنهاء المهمة» في إعدادات المطوّرين.",
   "support.note.unknown_setting": "إعداد لا تعرفه هذه النسخة من التطبيق.",
-
   "tweak.appearance.dark_mode.name": "الوضع الداكن",
   "tweak.appearance.dark_mode.desc": "يُطبَّق على التطبيقات وعلى واجهة ويندوز معًا.",
   "tweak.appearance.accent_color.name": "لون التمييز",
@@ -96,7 +83,6 @@
   "tweak.appearance.transparency.name": "تأثيرات الشفافية",
   "tweak.appearance.accent_on_titlebars.name": "لون التمييز على أشرطة العناوين",
   "tweak.appearance.accent_on_start_taskbar.name": "لون التمييز على ابدأ وشريط المهام",
-
   "tweak.taskbar.alignment.name": "محاذاة شريط المهام",
   "tweak.taskbar.alignment.choice.left": "إلى اليسار",
   "tweak.taskbar.alignment.choice.center": "في الوسط",
@@ -113,14 +99,12 @@
   "tweak.taskbar.icon_size.choice.large": "كبير",
   "tweak.taskbar.seconds_in_clock.name": "إظهار الثواني في الساعة",
   "tweak.taskbar.end_task.name": "«إنهاء المهمة» في قائمة النقر الأيمن",
-
   "tweak.start.layout.name": "تخطيط قائمة ابدأ",
   "tweak.start.layout.choice.default": "افتراضي",
   "tweak.start.layout.choice.more_pins": "تثبيتات أكثر",
   "tweak.start.layout.choice.more_recommendations": "توصيات أكثر",
   "tweak.start.recently_added_apps.name": "إظهار التطبيقات المضافة حديثًا",
   "tweak.start.recommended_files.name": "إظهار الملفات المقترحة",
-
   "tweak.explorer.show_file_extensions.name": "إظهار امتدادات الملفات",
   "tweak.explorer.show_hidden_files.name": "إظهار الملفات المخفية",
   "tweak.explorer.show_protected_os_files.name": "إظهار ملفات النظام المحمية",
@@ -130,5 +114,36 @@
   "tweak.explorer.launch_to.choice.downloads": "التنزيلات",
   "tweak.explorer.compact_view.name": "العرض المضغوط",
   "tweak.explorer.classic_context_menu.name": "قائمة النقر الأيمن الكلاسيكية",
-  "tweak.explorer.classic_context_menu.desc": "يتجاوز «إظهار المزيد من الخيارات». يتطلّب إعادة تشغيل المستكشف."
+  "tweak.explorer.classic_context_menu.desc": "يتجاوز «إظهار المزيد من الخيارات». يتطلّب إعادة تشغيل المستكشف.",
+  "jarvis.title": "وضع جارفِس",
+  "jarvis.body": "شاشة معلومات فوق سطح المكتب، ونفس الكسوة على هذه النافذة وعلى شريط الإرساء. الطبقة تمرّر النقر: تعلو كل شيء ولا تحجب شيئًا.",
+  "jarvis.show": "شغّل وضع جارفِس",
+  "jarvis.lookNote": "الطبقة والكسوة من صنعنا ولا تغيّران شيئًا في الجهاز. أمّا مظهر جارفِس — اللون والخلفية وشريط المهام — فيُعرض عليك على حدة ويمرّ بشاشة التأكيد المعتادة، فلك أن تأخذ أحدهما دون الآخر.",
+  "jarvis.sound": "الصوت والنطق",
+  "jarvis.soundNote": "يَنطق بالصوت الموجود في ويندوز أصلًا، والنغمات تُولَّد لحظة تشغيلها. لا شيء يُنزَّل، ولا شيء يُرسَل إلى أي جهة.",
+  "jarvis.telemetry": "القراءات الحية",
+  "jarvis.telemetryNote": "المعالج والذاكرة والقرص والشبكة والبطارية، تُقرأ مرة كل ثانية. إطفاؤها يُبقي الساعة والمفاعل ويوقف القراءة.",
+  "jarvis.address": "بماذا يناديك",
+  "jarvis.addressPlaceholder": "سيدي",
+  "jarvis.addressNote": "يُستخدم في التحية، منطوقًا ومكتوبًا. اتركه فارغًا فيكتفي بذكر وقت اليوم.",
+  "jarvis.farewell": "جارٍ الإغلاق. إلى اللقاء.",
+  "hud.subtitle": "واجهة مينو للصدفة",
+  "hud.boot.core": "تهيئة نواة مينو",
+  "hud.boot.shell": "ربط طبقة الصدفة",
+  "hud.boot.registry": "قراءة حالة النظام",
+  "hud.boot.telemetry": "معايرة القياسات",
+  "hud.boot.online": "جارفِس جاهز",
+  "hud.boot.ok": "تم",
+  "hud.greeting.morning": "صباح الخير",
+  "hud.greeting.afternoon": "طاب يومك",
+  "hud.greeting.evening": "مساء الخير",
+  "hud.address": "، يا {name}",
+  "hud.nominal": "كل الأنظمة تعمل كما ينبغي.",
+  "hud.cpu": "المعالج",
+  "hud.memory": "الذاكرة",
+  "hud.disk": "القرص",
+  "hud.network": "الشبكة",
+  "hud.power": "الطاقة",
+  "hud.charging": "قيد الشحن",
+  "hud.uptime": "مدة التشغيل"
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { PlanDialog } from "./components/PlanDialog";
 import { Home } from "./routes/Home";
@@ -6,10 +6,13 @@ import { Category } from "./routes/Category";
 import { History } from "./routes/History";
 import { Looks } from "./routes/Looks";
 import { useI18n } from "./i18n";
+import { applyJarvisTheme } from "./lib/jarvis";
+import * as sound from "./lib/sound";
 import {
   api,
   inTauri,
   type Category as Cat,
+  type JarvisConfig,
   type JournalEntry,
   type DockConfig,
   type OsBuild,
@@ -20,6 +23,10 @@ import {
 } from "./lib/api";
 
 type View = "home" | "looks" | Cat | "history";
+
+/** The Look that goes with JARVIS mode, offered — never applied — when the
+ *  mode is switched on. Matches `packs/jarvis/manifest.json`. */
+const JARVIS_PACK = "com.mino.jarvis";
 
 const CATEGORIES: Cat[] = ["appearance", "desktop", "taskbar", "start", "explorer"];
 
@@ -33,6 +40,7 @@ export default function App() {
   const [journalDir, setJournalDir] = useState("");
   const [packs, setPacks] = useState<PackSummary[]>([]);
   const [dock, setDock] = useState<DockConfig | null>(null);
+  const [jarvis, setJarvis] = useState<JarvisConfig | null>(null);
   /** Set while a Look is waiting in the confirmation dialog. */
   const [pendingPack, setPendingPack] = useState<string | null>(null);
 
@@ -44,13 +52,14 @@ export default function App() {
   const [message, setMessage] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    const [osInfo, list, history, dir, looks, dockConfig] = await Promise.all([
+    const [osInfo, list, history, dir, looks, dockConfig, jarvisConfig] = await Promise.all([
       api.osInfo(),
       api.listTweaks(),
       api.history(),
       api.journalDir(),
       api.listPacks(),
       api.dockConfig(),
+      api.jarvisConfig(),
     ]);
     setOs(osInfo);
     setTweaks(list);
@@ -58,6 +67,7 @@ export default function App() {
     setJournalDir(dir);
     setPacks(looks);
     setDock(dockConfig);
+    setJarvis(jarvisConfig);
   }, []);
 
   useEffect(() => {
@@ -72,6 +82,107 @@ export default function App() {
       document.documentElement.style.setProperty("--accent", accent.value);
     }
   }, [tweaks]);
+
+  // The skin, and whether the app is allowed to make a noise. Both follow the
+  // config wherever it was changed from, including another window.
+  useEffect(() => {
+    applyJarvisTheme(jarvis?.enabled ?? false);
+    sound.setSoundEnabled(Boolean(jarvis?.enabled && jarvis.sound));
+  }, [jarvis?.enabled, jarvis?.sound]);
+
+  // Interface blips, added by delegation rather than by putting a handler on
+  // every control: there are a few dozen of them, and none should have to know
+  // that a sound scheme exists.
+  //
+  // `mouseover` bubbles from whatever is under the cursor, so moving between a
+  // button and the text inside it fires it again — hence the guard on which
+  // control was last entered.
+  const lastHovered = useRef<Element | null>(null);
+  useEffect(() => {
+    if (!jarvis?.enabled || !jarvis.sound) return;
+
+    const controlUnder = (event: Event) =>
+      (event.target as HTMLElement | null)?.closest?.("button, .switch, .dock-toggle, .input") ??
+      null;
+
+    const over = (event: Event) => {
+      const control = controlUnder(event);
+      if (control && control !== lastHovered.current) sound.hover();
+      lastHovered.current = control;
+    };
+    const down = (event: Event) => {
+      if (controlUnder(event)) sound.click();
+    };
+
+    document.addEventListener("mouseover", over);
+    document.addEventListener("mousedown", down);
+    return () => {
+      document.removeEventListener("mouseover", over);
+      document.removeEventListener("mousedown", down);
+      lastHovered.current = null;
+    };
+  }, [jarvis?.enabled, jarvis?.sound]);
+
+  /** The line the HUD shows, spoken. Built here because this is where the
+   *  dictionary is, and where the user gesture that permits speech happened. */
+  const spokenGreeting = (config: JarvisConfig) => {
+    const greeting = t(`hud.greeting.${sound.greetingKey()}`);
+    const address = config.address ? t("hud.address", { name: config.address }) : "";
+    return `${greeting}${address}. ${t("hud.nominal")}`;
+  };
+
+  /**
+   * Turns the mode on or off.
+   *
+   * The HUD and the skin happen immediately — they are ours and they change
+   * nothing on the machine. The Look is only *offered*: `reviewPack` opens the
+   * same confirmation screen every other change goes through, and declining it
+   * leaves JARVIS mode on with the desktop untouched.
+   */
+  const setJarvisEnabled = async (enabled: boolean) => {
+    try {
+      const next = await api.jarvisSetEnabled(enabled);
+      setJarvis(next);
+
+      // Set before playing, not left to the effect above: this click is the
+      // user gesture the browser wants, and by the next render it is spent.
+      sound.setSoundEnabled(next.enabled && next.sound);
+      if (next.sound) {
+        if (enabled) {
+          sound.bootSweep();
+          sound.speak(spokenGreeting(next), lang);
+        } else {
+          sound.powerDown();
+          sound.speak(t("jarvis.farewell"), lang);
+        }
+      }
+
+      if (enabled) {
+        const look = packs.find((pack) => pack.id === JARVIS_PACK && pack.applicable);
+        if (look) await reviewPack(look);
+      }
+    } catch (err) {
+      setMessage(String(err));
+    }
+  };
+
+  const setJarvisOptions = async (options: {
+    sound?: boolean;
+    telemetry?: boolean;
+    address?: string;
+  }) => {
+    try {
+      const next = await api.jarvisSetOptions(options);
+      setJarvis(next);
+      // Turning sound on should prove it did something.
+      if (options.sound === true) {
+        sound.setSoundEnabled(true);
+        sound.on();
+      }
+    } catch (err) {
+      setMessage(String(err));
+    }
+  };
 
   const change = useCallback((id: string, value: Value) => {
     setPending((current) => {
@@ -223,6 +334,9 @@ export default function App() {
                 setMessage(String(err));
               }
             }}
+            jarvis={jarvis}
+            onJarvisChange={setJarvisEnabled}
+            onJarvisOptions={setJarvisOptions}
             onRevertAll={() => setConfirmRevertAll(true)}
             onOpenCategory={(category) => setView(category)}
           />
