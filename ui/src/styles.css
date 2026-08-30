@@ -8,7 +8,18 @@
  */
 
 :root {
+  /* Which way round the browser paints scrollbars, form controls and the
+     canvas. Declared here and in every theme block, rather than being set from
+     TypeScript: a Look that got this wrong would paint dark scrollbars on
+     paper, and the one place that cannot disagree with a palette is the block
+     the palette is written in. */
+  color-scheme: light dark;
+
   --accent: #0f62c0;
+  /* Text and marks that sit *on* the accent. A variable rather than a literal
+     because a Look is free to choose a pale accent, and three places that each
+     said `#fff` would all be wrong at once and separately. */
+  --on-accent: #ffffff;
 
   --bg: #f3f4f8;
   --layer: #ffffff;
@@ -334,7 +345,7 @@ code {
 
 .badge--accent {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 /* ---------------- looks ---------------- */
@@ -471,7 +482,7 @@ code {
 
 .switch input:checked + .switch__track .switch__thumb {
   margin-inline-start: 20px;
-  background: #fff;
+  background: var(--on-accent);
 }
 
 .switch input:disabled + .switch__track {
@@ -533,7 +544,7 @@ select {
 .btn--primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .btn--primary:hover:not(:disabled) {
@@ -564,6 +575,24 @@ select {
   margin-block-end: 5px;
 }
 
+/* A label and its control on one line, for a setting whose name is shorter
+   than the control it belongs to. */
+.field--inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-block: 10px;
+}
+
+.field--inline span {
+  margin-block-end: 0;
+}
+
+.field--inline .input {
+  width: auto;
+  min-width: 180px;
+}
+
 .input {
   width: 100%;
   font: inherit;
@@ -580,12 +609,276 @@ select {
   border-color: var(--accent);
 }
 
-/* The preferences that appear under the JARVIS switch once it is on. The rule
-   just separates them from the switch above; the panel does the rest. */
+/* The Look picker. A column of radios rather than a grid of cards: there is
+   one Look at a time, and the list is short enough that reading it downwards is
+   quicker than looking around it. */
+.looks-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-block: 10px;
+}
+
+/* The preferences that appear under the picker once a Look is worn. The rule
+   just separates them from the picker above; the panel does the rest. */
 .jarvis-options {
   margin-block-start: 14px;
   padding-block-start: 14px;
   border-block-start: 1px solid var(--line);
+}
+
+/* ---------------- Cupertino ----------------
+ *
+ * The first Look that is not an instrument panel, and the one that will find
+ * anywhere the app's own CSS quietly assumed the JARVIS direction of travel.
+ * Nothing here is a new rule: it is the same variables, set softer and rounder.
+ *
+ * `--accent` is deliberately not set, for the same reason JARVIS does not set
+ * it. The app wears the system accent (see App.tsx), and the Cupertino pack has
+ * usually just set that to the same blue — so the app matches the desktop
+ * rather than overriding it, and someone who declined the pack still gets the
+ * skin.
+ */
+
+:root[data-theme="cupertino"] {
+  color-scheme: dark;
+
+  --bg: #1c1c1e;
+  --layer: rgba(44, 44, 46, 0.72);
+  --layer-2: rgba(58, 58, 60, 0.6);
+  --ink: #f5f5f7;
+  --ink-2: #c7c7cc;
+  --muted: #8e8e93;
+  --line: rgba(255, 255, 255, 0.12);
+  --line-2: rgba(255, 255, 255, 0.2);
+
+  --warn: #ffd60a;
+  --warn-bg: rgba(120, 90, 8, 0.3);
+  --error: #ff453a;
+  --error-bg: rgba(120, 30, 25, 0.3);
+
+  --radius: 10px;
+  --radius-lg: 14px;
+  --shadow: 0 1px 1px rgba(0, 0, 0, 0.16), 0 22px 50px -28px rgba(0, 0, 0, 0.9);
+}
+
+:root[data-theme="cupertino"] body {
+  background:
+    radial-gradient(ellipse 120% 80% at 50% -10%, #2f3540 0%, #1c1c1e 58%);
+  letter-spacing: 0.01em;
+}
+
+/* Vibrancy on bounded surfaces only — panels, cards and dialogs. Never on a
+   full-screen layer: a blur the size of the window is paid for on every frame
+   that touches it. */
+:root[data-theme="cupertino"] .panel,
+:root[data-theme="cupertino"] .card,
+:root[data-theme="cupertino"] .look,
+:root[data-theme="cupertino"] .dialog {
+  background: var(--layer);
+  border-color: var(--line);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+:root[data-theme="cupertino"] .nav {
+  background: rgba(28, 28, 30, 0.72);
+  border-inline-end-color: var(--line);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+:root[data-theme="cupertino"] h1 {
+  letter-spacing: -0.01em;
+}
+
+:root[data-theme="cupertino"] .brand__mark {
+  border-radius: 8px;
+}
+
+:root[data-theme="cupertino"] .btn {
+  border-radius: 8px;
+}
+
+/* ---------------- Yaru ----------------
+ *
+ * Ubuntu's aubergine and orange. Flat where Cupertino is soft: no vibrancy, no
+ * shadow to speak of, and corners that barely round.
+ *
+ * The typeface is the system sans, not Ubuntu's own. That font is
+ * redistributable under its own licence, but shipping a binary brings a licence
+ * obligation and weight for a cosmetic gain — Yaru is recognisable by its
+ * colour and its layout, not by its `g`.
+ */
+
+:root[data-theme="yaru"] {
+  color-scheme: dark;
+
+  --bg: #1d1a1b;
+  --layer: #2c2224;
+  --layer-2: #3a2c30;
+  --ink: #ffffff;
+  --ink-2: #d4cccf;
+  --muted: #a2989c;
+  --line: #4a393e;
+  --line-2: #5d4950;
+
+  --warn: #f9c440;
+  --warn-bg: #3e3218;
+  --error: #ff7a5c;
+  --error-bg: #40211a;
+
+  --radius: 4px;
+  --radius-lg: 6px;
+  --shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+:root[data-theme="yaru"] body {
+  background: #1d1a1b;
+}
+
+:root[data-theme="yaru"] .nav {
+  background: #2d0a22;
+  border-inline-end-color: #4a1a38;
+}
+
+:root[data-theme="yaru"] .panel,
+:root[data-theme="yaru"] .card,
+:root[data-theme="yaru"] .look,
+:root[data-theme="yaru"] .dialog {
+  background: var(--layer);
+  border-color: var(--line);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+:root[data-theme="yaru"] .brand__mark {
+  border-radius: 50%;
+  background: #e95420;
+}
+
+/* The one place the drawn orange is used rather than the system accent: a
+   swatch is a sample of the Look, not of the desktop. */
+.look__swatch--yaru {
+  background: linear-gradient(140deg, #e95420 0%, #77216f 55%, #2c001e 100%);
+}
+
+/* ---------------- Zen ----------------
+ *
+ * The one Look that works by taking things away, and the only light one. It is
+ * also the audit: JARVIS, Cupertino and Yaru are all dark, so any place in this
+ * stylesheet that hardcoded a colour instead of reading a variable was hidden
+ * by all three and shows up here as a dark patch on paper. Those get fixed at
+ * the source — see `--on-accent` — rather than patched inside this block.
+ *
+ * The effect is spacing more than colour. Nothing below is a new component:
+ * the type gets more room, the rules get quieter, and the shadows go entirely.
+ */
+
+:root[data-theme="zen"] {
+  color-scheme: light;
+
+  --bg: #f7f5f0;
+  --layer: #fdfcf9;
+  --layer-2: #f2efe8;
+  --ink: #2b2a28;
+  --ink-2: #5a574f;
+  --muted: #8a857a;
+  /* Warm greys, all of them. A neutral grey next to a warm paper reads as
+     dirty rather than as quiet. */
+  --line: rgba(43, 42, 40, 0.08);
+  --line-2: rgba(43, 42, 40, 0.16);
+
+  --warn: #8a6a1f;
+  --warn-bg: #f7f0dd;
+  --error: #9c4128;
+  --error-bg: #f7e7e0;
+
+  --radius: 4px;
+  --radius-lg: 6px;
+  /* Separation comes from space and a hairline, not from a drop shadow. */
+  --shadow: none;
+}
+
+:root[data-theme="zen"] body {
+  background: var(--bg);
+  line-height: 1.75;
+}
+
+/* A serif for headings, from whatever the machine has. Nothing is shipped. */
+:root[data-theme="zen"] h1,
+:root[data-theme="zen"] h2 {
+  font-family: "Iowan Old Style", Georgia, "Times New Roman", serif;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+/* Arabic gets an Arabic serif rather than a Latin one with a fallback bolted
+   on behind it — which would render every heading in the fallback anyway, and
+   badly. */
+:root[data-theme="zen"]:lang(ar) h1,
+:root[data-theme="zen"]:lang(ar) h2 {
+  font-family: "Traditional Arabic", "Simplified Arabic", "Times New Roman", serif;
+}
+
+:root[data-theme="zen"] h1 {
+  font-size: 28px;
+}
+
+/* Room, which is the whole effect. Roughly a third more than the default
+   theme, everywhere it shows. */
+:root[data-theme="zen"] .main {
+  padding: 36px 42px 96px;
+}
+
+:root[data-theme="zen"] .panel {
+  padding: 26px 28px;
+}
+
+:root[data-theme="zen"] .card {
+  padding: 20px 22px;
+}
+
+:root[data-theme="zen"] .nav {
+  background: var(--layer);
+  border-inline-end-color: var(--line);
+}
+
+:root[data-theme="zen"] .panel,
+:root[data-theme="zen"] .card,
+:root[data-theme="zen"] .look,
+:root[data-theme="zen"] .dialog {
+  background: var(--layer);
+  border-color: var(--line);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* A scrim over paper is a mist, not a blackout. */
+:root[data-theme="zen"] .scrim {
+  background: rgba(43, 42, 40, 0.28);
+}
+
+/* The default mark is the accent graded into black, which on paper is a dark
+   blot rather than a mark. Flat sage, and round. */
+:root[data-theme="zen"] .brand__mark {
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* Slower and fewer. Nothing pulses and nothing glows. */
+:root[data-theme="zen"] * {
+  transition-duration: 0.28s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="zen"] * {
+    transition-duration: 0s;
+  }
+}
+
+.look__swatch--zen {
+  background: linear-gradient(150deg, #fdfcf9 0%, #efece3 55%, #cfd4c8 100%);
 }
 
 /* ---------------- pending bar ---------------- */
@@ -808,6 +1101,8 @@ select {
  */
 
 :root[data-theme="jarvis"] {
+  color-scheme: dark;
+
   --bg: #03080e;
   --layer: rgba(8, 22, 34, 0.72);
   --layer-2: rgba(16, 40, 58, 0.55);

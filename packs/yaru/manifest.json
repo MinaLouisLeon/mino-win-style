@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "id": "com.mino.yaru",
+  "name": {
+    "en": "Yaru",
+    "ar": "يارو"
+  },
+  "author": "mino-win-style",
+  "description": {
+    "en": "The desktop the Yaru Look stands on: aubergine, a warm orange accent, and flat — transparency stays off, because acrylic fights a design with no depth in it. The taskbar auto-hides and Task View leaves it, since with a bar across the top and a dock down the side a third strip is one too many.",
+    "ar": "سطح المكتب الذي يقوم عليه مظهر يارو: باذنجاني، بلون تمييز برتقالي دافئ، ومسطّح — تبقى الشفافية مطفأة لأن الزجاجية تناقض تصميمًا لا عمق فيه. وشريط المهام ينزوي، ويغادره عرض المهام، فمع شريط أعلى وإرساء على الجانب يصير الثالث زائدًا."
+  },
+  "requires": {
+    "min_build": 22000,
+    "max_build": null
+  },
+  "settings": {
+    "appearance.dark_mode": true,
+    "appearance.accent_color": "#C7431A",
+    "appearance.transparency": false,
+    "appearance.accent_on_titlebars": true,
+    "appearance.accent_on_start_taskbar": true,
+
+    "desktop.wallpaper": "assets/wallpaper.png",
+    "desktop.wallpaper_fit": "fill",
+
+    "taskbar.alignment": "left",
+    "taskbar.auto_hide": true,
+    "taskbar.widgets": false,
+    "taskbar.search": "hidden",
+    "taskbar.task_view": false,
+    "taskbar.seconds_in_clock": false,
+
+    "start.layout": "more_pins",
+    "start.recently_added_apps": false,
+    "start.recommended_files": false,
+
+    "explorer.show_file_extensions": true,
+    "explorer.compact_view": false,
+    "explorer.launch_to": "home"
+  }
+}

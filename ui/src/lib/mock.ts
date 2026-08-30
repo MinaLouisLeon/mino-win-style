@@ -6,11 +6,13 @@
  * when the two disagree the Rust side is right.
  */
 
-import { JARVIS_DEFAULTS, type JarvisConfig, type Telemetry } from "./jarvis";
+import { SHELL_DEFAULTS, type LookId, type LookInfo, type ShellConfig, type Telemetry } from "./shell-look";
 import type {
   Api,
   ApplyReport,
   Category,
+  Edge,
+  Reveal,
   JournalEntry,
   Plan,
   Support,
@@ -138,7 +140,46 @@ const defs: Def[] = [
 const current = new Map<string, Value>(defs.map((d) => [d.id, d.value]));
 const entries: JournalEntry[] = [];
 let mockDockEnabled = false;
-let mockJarvis: JarvisConfig = { ...JARVIS_DEFAULTS };
+let mockShell: ShellConfig = { ...SHELL_DEFAULTS };
+let mockTopBar = false;
+
+/** One shape for the dock's config, so the three setters cannot drift. */
+const mockDock = () => ({
+  enabled: mockDockEnabled,
+  pinned: [] as string[],
+  icon_size: 48,
+  reveal: mockReveal,
+  placement: mockPlacement,
+});
+let mockReveal: Reveal = "always";
+let mockPlacement: Edge = "bottom";
+
+/** The registry, as Rust would have sent it. Kept in step with `LOOKS` in
+ *  `src-tauri/src/shell_look.rs` by hand, like the tweak list above. */
+const mockLooks: LookInfo[] = [
+  {
+    id: "jarvis",
+    theme: "jarvis",
+    surfaces: ["overlay"],
+    pack_id: "com.mino.jarvis",
+    dock: null,
+  },
+  {
+    id: "cupertino",
+    theme: "cupertino",
+    surfaces: ["top-bar", "dock"],
+    pack_id: "com.mino.macos",
+    dock: { edge: "bottom", hover: true },
+  },
+  {
+    id: "yaru",
+    theme: "yaru",
+    surfaces: ["top-bar", "dock"],
+    pack_id: "com.mino.yaru",
+    dock: { edge: "left", hover: false },
+  },
+  { id: "zen", theme: "zen", surfaces: [], pack_id: "com.mino.zen", dock: null },
+];
 
 const wait = <T,>(value: T): Promise<T> =>
   new Promise((resolve) => setTimeout(() => resolve(value), 120));
@@ -272,6 +313,21 @@ export const mockApi: Api = {
 
   listPacks: () =>
     wait([
+      // The pack the JARVIS Look offers. Here so the offer — the confirmation
+      // screen a Look opens when it is put on — can be walked through in a
+      // browser tab, which is where the flow gets laid out.
+      {
+        id: "com.mino.jarvis",
+        dir: "C:\packs\jarvis",
+        name: { en: "JARVIS", ar: "جارفِس" },
+        description: {
+          en: "The desktop the HUD is drawn on: black, arc-reactor cyan, and a taskbar that gets out of the way.",
+          ar: "سطح المكتب الذي تُرسم عليه شاشة المعلومات: أسود، وسماوي المفاعل القوسي، وشريط مهام ينزوي.",
+        },
+        author: "mino-win-style",
+        settings: 20,
+        applicable: true,
+      },
       {
         id: "com.mino.macos",
         dir: "C:\\packs\\macos",
@@ -308,24 +364,41 @@ export const mockApi: Api = {
       }),
     ),
 
-  dockConfig: () => wait({ enabled: mockDockEnabled, pinned: [], icon_size: 48 }),
+  dockConfig: () => wait(mockDock()),
   dockSetEnabled: (enabled) => {
     mockDockEnabled = enabled;
-    return wait({ enabled, pinned: [], icon_size: 48 });
+    return wait(mockDock());
+  },
+  dockSetReveal: (hover) => {
+    mockReveal = hover ? "hover" : "always";
+    return wait(mockDock());
+  },
+  dockSetPlacement: (edge) => {
+    mockPlacement = edge;
+    return wait(mockDock());
   },
 
-  // JARVIS mode in a browser tab is the skin and nothing else: there is no
-  // second window to put a HUD in, and no machine to read.
-  jarvisConfig: () => wait({ ...mockJarvis }),
-  jarvisSetEnabled: (enabled) => {
-    mockJarvis = { ...mockJarvis, enabled };
-    return wait({ ...mockJarvis });
+  // In a browser tab the bar is a page you can open, not a strip that reserves
+  // anything: there is no desktop here to take a slice out of.
+  topBarConfig: () => wait({ enabled: mockTopBar, height: 28 }),
+  topBarSetEnabled: (enabled) => {
+    mockTopBar = enabled;
+    return wait({ enabled, height: 28 });
   },
-  jarvisSetOptions: (options) => {
-    mockJarvis = { ...mockJarvis, ...options };
-    return wait({ ...mockJarvis });
+
+  // A Look in a browser tab is the skin and nothing else: there is no second
+  // window to put an overlay in, and no machine to read.
+  shellConfig: () => wait({ ...mockShell }),
+  shellLooks: () => wait(mockLooks.map((look) => ({ ...look }))),
+  shellSetLook: (id: LookId | null) => {
+    mockShell = { ...mockShell, active: id };
+    return wait({ ...mockShell });
   },
-  jarvisTelemetry: () =>
+  shellSetOptions: (options) => {
+    mockShell = { ...mockShell, ...options };
+    return wait({ ...mockShell });
+  },
+  shellTelemetry: () =>
     wait<Telemetry>({
       cpu_percent: 34,
       memory_used_bytes: 10 * 1024 ** 3,

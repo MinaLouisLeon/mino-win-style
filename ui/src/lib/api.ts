@@ -8,9 +8,17 @@
  */
 
 import { mockApi } from "./mock";
-import type { JarvisConfig, Telemetry } from "./jarvis";
+import type { Edge, LookId, LookInfo, ShellConfig, Telemetry } from "./shell-look";
 
-export type { JarvisConfig, Telemetry } from "./jarvis";
+export type {
+  DockWish,
+  Edge,
+  LookId,
+  LookInfo,
+  ShellConfig,
+  Surface,
+  Telemetry,
+} from "./shell-look";
 
 export type Category = "appearance" | "desktop" | "taskbar" | "start" | "explorer";
 export type Tier = "a" | "b" | "c";
@@ -116,11 +124,25 @@ export interface PackSummary {
   applicable: boolean;
 }
 
+/** When the dock is on screen. `hover` keeps it at the bottom edge until the
+ *  pointer comes for it, which is what Cupertino wants. */
+export type Reveal = "always" | "hover";
+
 /** The dock is our own window, not a Windows setting, so it has its own config. */
 export interface DockConfig {
   enabled: boolean;
   pinned: string[];
   icon_size: number;
+  reveal: Reveal;
+  /** Which edge it lives on. A dock down a side reserves its strip. */
+  placement: Edge;
+}
+
+/** The bar, likewise. `height` is logical pixels, and it is what gets reserved
+ *  out of the desktop — which is why Rust clamps it rather than trusting it. */
+export interface TopBarConfig {
+  enabled: boolean;
+  height: number;
 }
 
 export interface OsBuild {
@@ -145,15 +167,22 @@ export interface Api {
   applyPack(dir: string): Promise<ApplyReport>;
   dockConfig(): Promise<DockConfig>;
   dockSetEnabled(enabled: boolean): Promise<DockConfig>;
-  jarvisConfig(): Promise<JarvisConfig>;
-  jarvisSetEnabled(enabled: boolean): Promise<JarvisConfig>;
+  dockSetReveal(hover: boolean): Promise<DockConfig>;
+  dockSetPlacement(edge: Edge): Promise<DockConfig>;
+  topBarConfig(): Promise<TopBarConfig>;
+  topBarSetEnabled(enabled: boolean): Promise<TopBarConfig>;
+  shellConfig(): Promise<ShellConfig>;
+  /** The registry: every Look this build has. The UI keeps no copy of it. */
+  shellLooks(): Promise<LookInfo[]>;
+  /** Wears a Look, or takes the current one off with `null`. */
+  shellSetLook(id: LookId | null): Promise<ShellConfig>;
   /** Any subset; anything left out keeps the value it has. */
-  jarvisSetOptions(options: {
+  shellSetOptions(options: {
     sound?: boolean;
     telemetry?: boolean;
     address?: string;
-  }): Promise<JarvisConfig>;
-  jarvisTelemetry(): Promise<Telemetry>;
+  }): Promise<ShellConfig>;
+  shellTelemetry(): Promise<Telemetry>;
 }
 
 /**
@@ -185,10 +214,15 @@ function tauriApi(): Api {
     applyPack: (dir) => invoke<ApplyReport>("apply_pack", { dir }),
     dockConfig: () => invoke<DockConfig>("dock_config"),
     dockSetEnabled: (enabled) => invoke<DockConfig>("dock_set_enabled", { enabled }),
-    jarvisConfig: () => invoke<JarvisConfig>("jarvis_config"),
-    jarvisSetEnabled: (enabled) => invoke<JarvisConfig>("jarvis_set_enabled", { enabled }),
-    jarvisSetOptions: (options) => invoke<JarvisConfig>("jarvis_set_options", options),
-    jarvisTelemetry: () => invoke<Telemetry>("jarvis_telemetry"),
+    dockSetReveal: (hover) => invoke<DockConfig>("dock_set_reveal", { hover }),
+    dockSetPlacement: (edge) => invoke<DockConfig>("dock_set_placement", { edge }),
+    topBarConfig: () => invoke<TopBarConfig>("top_bar_config"),
+    topBarSetEnabled: (enabled) => invoke<TopBarConfig>("top_bar_set_enabled", { enabled }),
+    shellConfig: () => invoke<ShellConfig>("shell_config"),
+    shellLooks: () => invoke<LookInfo[]>("shell_looks"),
+    shellSetLook: (id) => invoke<ShellConfig>("shell_set_look", { id }),
+    shellSetOptions: (options) => invoke<ShellConfig>("shell_set_options", options),
+    shellTelemetry: () => invoke<Telemetry>("shell_telemetry"),
   };
 }
 

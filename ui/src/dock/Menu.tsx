@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-import type { DockItem } from "./api";
+import type { DockItem, Edge } from "./api";
 
 export interface MenuAction {
   /** Stable id, used for keys and for deciding what to run. */
@@ -16,10 +16,12 @@ export interface MenuAction {
 interface Props {
   item: DockItem;
   actions: MenuAction[];
-  /** Centre of the icon this belongs to, in window coordinates. */
-  anchorX: number;
-  /** Distance from the bottom of the window to sit above. */
-  bottom: number;
+  /** Centre of the icon this belongs to, along the edge the dock is on. */
+  anchor: number;
+  /** How far in from that edge the panel reaches, so the menu clears it. */
+  offset: number;
+  /** Which edge the dock is on: the menu opens away from it. */
+  edge: Edge;
   onClose: () => void;
   measureRef: React.RefObject<HTMLDivElement | null>;
 }
@@ -34,7 +36,7 @@ const MARGIN = 8;
  * window shows. That means the keyboard handling and dismissal below are ours
  * to get right — arrow keys, Escape, Enter, and clicking away.
  */
-export function Menu({ item, actions, anchorX, bottom, onClose, measureRef }: Props) {
+export function Menu({ item, actions, anchor, offset, edge, onClose, measureRef }: Props) {
   const list = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -77,10 +79,21 @@ export function Menu({ item, actions, anchorX, bottom, onClose, measureRef }: Pr
   // Clamped so a menu on the first or last icon still lands inside the window,
   // which is the only surface we are allowed to paint on.
   const width = measureRef.current?.offsetWidth ?? 220;
-  const left = Math.min(
-    Math.max(anchorX - width / 2, MARGIN),
-    Math.max(window.innerWidth - width - MARGIN, MARGIN),
-  );
+  const height = measureRef.current?.offsetHeight ?? 160;
+
+  const clamp = (value: number, size: number, limit: number) =>
+    Math.min(Math.max(value - size / 2, MARGIN), Math.max(limit - size - MARGIN, MARGIN));
+
+  // The menu opens away from the edge the dock is on: upwards from a dock along
+  // the bottom, sideways from one down a side.
+  const style =
+    edge === "left"
+      ? { top: clamp(anchor, height, window.innerHeight), left: offset }
+      : edge === "right"
+        ? { top: clamp(anchor, height, window.innerHeight), right: offset }
+        : edge === "top"
+          ? { left: clamp(anchor, width, window.innerWidth), top: offset }
+          : { left: clamp(anchor, width, window.innerWidth), bottom: offset };
 
   return (
     <div
@@ -92,7 +105,7 @@ export function Menu({ item, actions, anchorX, bottom, onClose, measureRef }: Pr
       role="menu"
       aria-label={item.name}
       tabIndex={-1}
-      style={{ left, bottom }}
+      style={style}
       onKeyDown={onKeyDown}
       // Stops the click that chose an item from also counting as a click on the
       // stage, which is what dismisses the menu.

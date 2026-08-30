@@ -73,10 +73,27 @@ mod windows_main {
         /// Undo the most recent change. The command to reach for when something
         /// looks wrong and the app itself will not start.
         SafeRestore,
+        /// Give the desktop back its full work area.
+        ///
+        /// The bar reserves a strip at the top of the screen the way the
+        /// taskbar does. If this program is killed before it can hand that
+        /// strip back, the space stays reserved — a band of dead screen that
+        /// survives a reboot with nothing on it to explain itself. This clears
+        /// it without the app having to start.
+        ShellReset,
     }
 
     pub fn run() -> Result<()> {
         let cli = Cli::parse();
+
+        // Before anything else is loaded. This is the command someone runs when
+        // the desktop is visibly wrong, so it must not be able to fail on a
+        // broken registry, an unreadable journal, or an unsupported build of
+        // Windows — none of which it touches.
+        if matches!(cli.command, Command::ShellReset) {
+            return shell_reset();
+        }
+
         let (registry, shell, os) = mino_win::boot()?;
 
         let journal = Journal::new(cli.journal.clone().unwrap_or_else(Journal::default_dir));
@@ -199,9 +216,31 @@ mod windows_main {
                 println!("Restored the state from before the last change.");
                 println!("{} change(s) undone.", report.entry.changes.len());
             }
+
+            // Handled before boot; listed so this match stays exhaustive.
+            Command::ShellReset => unreachable!("handled before the engine is built"),
         }
 
         Ok(())
+    }
+
+    /// Hands the whole screen back to the desktop.
+    ///
+    /// It clears every reservation, not only one this program left behind — the
+    /// taskbar's included — so it says so rather than reporting a clean success
+    /// and leaving someone to wonder why their taskbar stopped reserving space.
+    /// Explorer takes its own back when it is restarted or signed back in to.
+    fn shell_reset() -> Result<()> {
+        if mino_shell::appbar::reset_work_area() {
+            println!("The work area is the whole screen again.");
+            println!("If the taskbar has stopped reserving its own strip, restart Explorer");
+            println!("from Task Manager, or sign out and back in, and it will take it back.");
+            Ok(())
+        } else {
+            Err(Error::Journal(
+                "Windows refused to reset the work area. Sign out and back in instead.".into(),
+            ))
+        }
     }
 
     fn resolve_entry(engine: &Engine, entry: &str) -> Result<String> {

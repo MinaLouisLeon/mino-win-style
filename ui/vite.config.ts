@@ -18,8 +18,8 @@ export default defineConfig({
     target: "chrome110",
     sourcemap: true,
     rollupOptions: {
-      // Three pages, three windows: the settings window, the dock and the
-      // JARVIS HUD. They share nothing but the toolchain and a couple of
+      // Four pages, four windows: the settings window, the dock, the overlay
+      // and the bar. They share nothing but the toolchain and a couple of
       // helpers, which is why each has its own entry rather than being a route
       // inside the main app.
       // Relative to the Vite root, which keeps Node types out of this file.
@@ -27,6 +27,7 @@ export default defineConfig({
         main: "index.html",
         dock: "dock.html",
         hud: "hud.html",
+        topbar: "topbar.html",
       },
     },
   },
