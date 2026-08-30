@@ -43,7 +43,7 @@ trick, and every pack below sets it.
 | [3](phase-3-cupertino.md) | **Cupertino** — menu bar + the existing dock | No | 2 |
 | [4](phase-4-yaru.md) | **Yaru** — top bar + a vertical dock | No, but the dock grows a placement | 2, 3 |
 | [5](phase-5-zen.md) | **Zen** — the Look that works by subtraction | No | 0 |
-| [6](phase-6-verification.md) | The VM run that makes all of it true | — | 1–5 |
+| [6](phase-6-verification.md) | The VM run that makes all of it true — checklist in [the run sheet](phase-6-runsheet.md) | — | 1–5 |
 
 Build them in that order. Phases 1 and 5 are the cheap ones and exist partly to
 prove the Phase 0 seam is in the right place before Phase 2 spends real Win32

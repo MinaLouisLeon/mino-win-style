@@ -100,3 +100,21 @@ enough for the drawn layer.
 - Each Look's card says what it does not do. Cupertino's especially — title
   bars, Alt+Tab, and the Start menu are not going anywhere, and the card is
   where a user finds that out before they are disappointed.
+
+## Status
+
+**Not done, and not doable from here.** This phase needs a machine that can be
+thrown away and a build of `src-tauri`, and the session it was started in had
+neither: the toolchain on hand cannot compile the Tauri crate, and the machine
+was the author's own rather than a VM.
+
+What was done instead was the part that changes nothing — see
+[the run sheet](phase-6-runsheet.md), which now carries both halves: what the
+read-only pass established on real hardware (every pack plans cleanly against a
+live registry, with nothing skipped, which had only ever been true against the
+fake), and the ordered checklist for the VM run that is still owed.
+
+One finding came out of it: the JARVIS pack's accent fails the white-on-accent
+contrast rule this plan's own Yaru and Phosphor phases argue for. It is written
+up in the run sheet and in the README, and deliberately not changed — a shipped
+colour is the author's call.

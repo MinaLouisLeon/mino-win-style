@@ -6,10 +6,12 @@ Explorer — and put every change back exactly as it was.
 A Rust core (`mino-core`) drives the registry and the Win32 API directly. The
 interface is HTML and TypeScript running in WebView2, hosted by Tauri 2.
 
-> **Status: M0 and most of M1. Builds, tests pass, reads a real machine.**
-> 37 tests green, clippy clean at `-D warnings`, and the CLI has been run
-> read-only against Windows 11 25H2 (build 26200.8106). Nothing has been
-> *applied* to a real machine yet — that is what a VM is for. See
+> **Status: M0 and most of M1, plus five Shell Looks. Reads a real machine.**
+> 64 tests green, clippy clean at `-D warnings`, and the CLI has been run
+> read-only against Windows 11 25H2 (build 26200.8106) — every pack plans
+> cleanly there. Nothing has been *applied* to a real machine yet, and no
+> surface has ever been drawn on one; that is what a VM is for, and
+> `plan/phase-6-runsheet.md` is the checklist. See
 > [What has and has not been verified](#what-has-and-has-not-been-verified).
 
 ## Looks, and the ceiling above them
@@ -394,16 +396,33 @@ refuses to run without `icon.ico`. Regenerate with
 
 **Verified**
 
-- 37 tests pass, including apply-then-revert byte-exactness against the
-  in-memory registry.
-- `cargo clippy -p mino-core -p mino-win -p mino-cli --all-targets -- -D warnings`
-  is clean.
+- 64 tests pass — 45 in `mino-core`, including apply-then-revert byte-exactness
+  against the in-memory registry, and 19 in `mino-shell` covering the surface
+  geometry: placement on all four edges, a monitor that does not start at the
+  origin, the DPI division, and the clamps that stop a hand-edited size covering
+  the screen.
+- `cargo clippy -p mino-core -p mino-win -p mino-cli -p mino-shell --all-targets
+  -- -D warnings` is clean, and `cargo fmt --all -- --check` passes.
+- A further 11 tests live in `src-tauri` — the Look registry, the config
+  migrations, the bar's height clamp — and **have never been run**, because that
+  crate needs a toolchain that can build it (see the toolchain notes) and the
+  one to hand cannot.
 - The UI typechecks and builds, and was driven end to end in a browser against
   the mock: both languages, RTL mirroring, the pending-changes bar and the
   confirmation dialog.
 - **The Win32 read path works against a real machine.** `mino os` and
-  `mino list` read Windows 11 Pro 25H2 (26200.8106) correctly, and
-  `mino --dry-run apply` planned 14 registry writes without touching anything.
+  `mino list` read Windows 11 Pro 25H2 (26200.8106) correctly — 28 settings off
+  a live registry, with one Tier B tweak (`taskbar.icon_size`) reporting itself
+  unavailable on that build, which no pack uses.
+- **Every pack plans cleanly against a real registry, with nothing skipped.**
+  `mino --dry-run apply` on all five — jarvis 19 changes, macos 14, yaru 18,
+  zen 16, midnight-cairo 14 — names no setting this build does not implement or
+  this Windows does not support. Packs that ask for something the machine
+  already has produce no change for it. Previously this was only true against
+  the in-memory fake.
+- **The accent encoding is right on real values.** `#C7431A` plans as
+  `AccentColorMenu: 0xFF1A43C7` — `0xFF` in the high byte, BGR below it, exactly
+  as the correction above describes.
 - `AccentColorTweak` was corrected against the live registry: the accent DWORDs
   carry `0xFF` in the high byte (not `0x00`), the `AccentPalette` ramp puts the
   base at index 3, and the eighth entry is an unrelated colour that we now
@@ -414,6 +433,17 @@ refuses to run without `icon.ico`. Regenerate with
 - The HUD, the app skin and the dock skin were driven in a browser against the
   mock, in both languages, and checked over a white background as well as a dark
   one — which is what the patch of shade under each group of HUD text is for.
+
+**Known, and not fixed**
+
+- **The JARVIS pack's accent fails the contrast rule this README argues for
+  elsewhere.** Windows puts white text on the accent in Start and on the
+  taskbar, which is why Yaru ships a darker orange for the system than the one
+  it draws with. Measured, white on JARVIS's `#00A8CC` is 2.81:1 — below even
+  the large-text threshold — while Yaru's `#C7431A` is 4.95:1, Zen's `#5E6B5E`
+  is 5.61:1 and the default `#0F62C0` is 5.95:1. `#007E99` is the same hue at
+  4.73:1. It is left alone here because a shipped colour is the author's call,
+  not the verifier's; see `plan/phase-6-runsheet.md`.
 
 **Not verified — this is what the VM is for**
 
@@ -445,11 +475,13 @@ refuses to run without `icon.ico`. Regenerate with
   behind by a killed process are all untested. The last of those is the one to
   check first, because it is the recovery for every other way this can go
   wrong.
-- Suggested first VM run: `mino --dry-run apply`, then `mino apply`, then
-  compare against `mino history` and `mino safe-restore`, checking with
-  `reg export` before and after that the revert really is byte-exact. Then the
-  bar: switch it on, maximize a window against it, kill the app from Task
-  Manager, and check `mino shell-reset` gives the strip back.
+- The run itself is written down: **`plan/phase-6-runsheet.md`** is the
+  checklist, in the order to do it — the write path and a byte-exact revert
+  first, then `mino shell-reset` *before* anything reserves, then the overlay's
+  click-through, then the bar's strip and the drill that kills the process while
+  it holds one, then the Looks. Snapshot the VM first; two of the steps
+  deliberately leave the machine in a bad state to prove it can be recovered
+  from.
 
 ## Testing
 
