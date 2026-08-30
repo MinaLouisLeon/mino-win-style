@@ -21,7 +21,7 @@
  * *pages* know how to draw something for. A Look with an overlay needs a
  * component keyed by its id, so this grows by one line as each Look lands.
  */
-export type LookId = "jarvis" | "cupertino" | "yaru";
+export type LookId = "jarvis" | "cupertino" | "yaru" | "zen";
 
 /** One of our own windows. Mirrors `Surface` in `src-tauri/src/shell_look.rs`. */
 export type Surface = "overlay" | "dock" | "top-bar";
@@ -78,20 +78,17 @@ const inTauri = "__TAURI_INTERNALS__" in window;
 /**
  * Puts a Look on, or takes the current one off with `null`.
  *
- * Also flips `color-scheme`, without which WebView2 keeps painting scrollbars
- * and form controls in the light palette over a black page. Every Look so far
- * is a dark one; when a light Look lands the scheme has to come from the
- * registry entry rather than from the fact that a Look is worn at all.
+ * One attribute, and nothing else. `color-scheme` used to be set from here, as
+ * `dark` for whichever Look was on — which was true until Zen, the first light
+ * one, and would have painted its scrollbars and form controls for a black page
+ * over paper. It is now declared in each theme block beside the palette it
+ * belongs to, so a Look cannot disagree with itself about which way round it
+ * is, and this function has nothing left to get wrong.
  */
 export function applyLookTheme(id: LookId | null): void {
   const root = document.documentElement;
-  if (id) {
-    root.setAttribute("data-theme", id);
-    root.style.colorScheme = "dark";
-  } else {
-    root.removeAttribute("data-theme");
-    root.style.colorScheme = "";
-  }
+  if (id) root.setAttribute("data-theme", id);
+  else root.removeAttribute("data-theme");
 }
 
 /**

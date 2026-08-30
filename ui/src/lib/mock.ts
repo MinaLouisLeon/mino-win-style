@@ -178,6 +178,7 @@ const mockLooks: LookInfo[] = [
     pack_id: "com.mino.yaru",
     dock: { edge: "left", hover: false },
   },
+  { id: "zen", theme: "zen", surfaces: [], pack_id: "com.mino.zen", dock: null },
 ];
 
 const wait = <T,>(value: T): Promise<T> =>

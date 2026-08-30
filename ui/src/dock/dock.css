@@ -526,3 +526,36 @@ body {
 :root[data-theme="yaru"] .menu {
   border-radius: 4px;
 }
+
+/* ---------------- Zen ----------------
+ *
+ * A row of icons at rest. The panel stops being a slab of frosted glass and
+ * becomes a hairline tray; the running dot loses its glow; and Dock.tsx holds
+ * the magnification still, because a dock that leaps at the cursor is the
+ * opposite of what this Look is for.
+ */
+
+:root[data-theme="zen"] .dock {
+  border-radius: 8px;
+  background: rgba(253, 252, 249, 0.82);
+  border: 1px solid rgba(43, 42, 40, 0.1);
+  box-shadow: none;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+:root[data-theme="zen"] .dot--on {
+  background: rgba(43, 42, 40, 0.55);
+  box-shadow: none;
+}
+
+:root[data-theme="zen"] .label {
+  background: rgba(253, 252, 249, 0.96);
+  border-color: rgba(43, 42, 40, 0.12);
+  color: #2b2a28;
+  border-radius: 4px;
+}
+
+:root[data-theme="zen"] .icon img {
+  filter: none;
+}

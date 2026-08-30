@@ -110,3 +110,37 @@ Switching to Zen from any other Look leaves nothing dark anywhere in the app,
 the dock (if on) is legible against a light wallpaper, `surfaces: []` shows no
 offer dialog, both languages are checked, and the pack's Revert restores the
 settings it set and demonstrably has not touched Start or Explorer.
+
+## What shipped, where it differs from the above
+
+All of it, and the audit found rather less than the plan expected — which is
+itself the finding.
+
+- **`color-scheme` was the real bug, and the plan did not predict it.**
+  `applyLookTheme` set it to `dark` for *any* Look, which was true for the four
+  that existed and would have painted Zen's scrollbars and form controls for a
+  black page over paper. It moved into the theme blocks, beside the palettes,
+  and `applyLookTheme` is now one attribute and nothing else. The default
+  `:root` gained `color-scheme: light dark`, which it should always have had —
+  its palette already followed `prefers-color-scheme`.
+- **The hardcoded-colour audit turned up three literals, not a pile.** All three
+  were `#fff` painted on the accent — a button label, a badge, a switch thumb —
+  and all three now read `--on-accent`. The other literals in the stylesheet are
+  either palette definitions inside a media query, the Look swatches (which are
+  pictures *of* a Look and should not be variables), or `#000` used as a
+  darkening operand, which has no light or dark about it.
+- **One thing was fixed in the Zen block rather than at the source.** The brand
+  mark is the accent graded into black, which on paper is a blot rather than a
+  mark. That is a per-Look aesthetic and not a hidden bug, so Zen sets it flat
+  instead of the base rule growing a variable nobody else would use.
+- **"Unmagnified" needed TypeScript, not CSS.** The plan put a calm dock in
+  `dock.css`; magnification is arithmetic, so `Dock.tsx` holds the cursor at
+  `null` under Zen. It is the same one-line shape as the bar's Cupertino
+  branch — the only two places a Look reaches past CSS into behaviour.
+- **`surfaces: []` needed no work at all.** The Phase 0 offer filters the list
+  and shows nothing when it is empty, which was the behaviour asked for; it is
+  now exercised by a Look rather than only by argument.
+- **Still no verification.** `src-tauri` does not compile here and no browser
+  was available, so the one Look whose whole point is how it looks has a
+  typechecker behind it and nothing else. The spacing, the serif, the Arabic
+  serif stack and the audit's result are all unseen.

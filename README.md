@@ -247,6 +247,47 @@ where a Look's geometry is a language question rather than a styling one, and it
 only ever applies to the edge being offered — a dock someone has already placed
 themselves is never moved.
 
+## Zen
+
+The counterweight. Four Looks that each draw a surface and fill the screen with
+instrument is one idea in four palettes, so the fifth is the one that works by
+taking things away: warm paper, generous space, a sage accent that recedes, and
+**nothing drawn over the desktop at all** — no overlay, no bar, no dock.
+
+That is not a gap. `surfaces: []` is a legal entry in the registry, and Zen is
+where it gets proved: a Look needs the entry, the theme and the pack, and
+nothing else. The surface offer never appears, because there is nothing to
+offer.
+
+The obvious Zen overlay would be a small clock that fades while you work and
+returns when you stop, and it is worth writing down why it is not here: **the
+overlay window is click-through**, so it receives no mouse messages at all.
+"Fades when the pointer moves" is not something a click-through window can know,
+and the ways around that are all worse than the feature — a full-screen click
+sink over the desktop, or a pointer hook. There is a legitimate version later:
+`foreground()` already says whether the user is working and in what, without
+touching the mouse.
+
+**Its pack sets fewer settings than any other**, on purpose. It does not touch
+the Start layout or anything in File Explorer, because someone who has arranged
+those has already decided, and a Look about calm should not undo it. A pack is
+not obliged to have an opinion about everything.
+
+### The audit
+
+Zen is the only light Look, which makes it the test the other four could not be.
+Anything in the stylesheets that hardcoded a colour instead of reading a
+variable was hidden by JARVIS, Cupertino and Yaru alike, and shows up on paper
+as a dark patch. Two came out of it:
+
+- Three places painted `#fff` on the accent — a button label, a badge, a switch
+  thumb. They now read `--on-accent`, so a Look with a pale accent has one place
+  to change rather than three to discover.
+- `color-scheme` was being set from TypeScript as `dark` for whichever Look was
+  on, which was true right up until this one. It now lives in each theme block
+  beside the palette it belongs to, where a Look cannot disagree with itself
+  about which way round it is.
+
 ## Why it is built this way
 
 - **Reversible by construction.** No change is applied before its previous value
@@ -385,6 +426,10 @@ refuses to run without `icon.ico`. Regenerate with
   full-screen placement over the taskbar, and whether a transparent
   always-on-top overlay behaves itself in front of real windows are all
   untested outside the browser.
+- **Nothing about Zen has run either.** It is the least risky of the five —
+  there is no surface and no new Win32 in it — but it is also the one whose
+  point is what it looks like, and no browser was available this session to
+  look.
 - **Nothing about Yaru has run either**, and it adds the two things most worth
   watching: a dock that reserves a strip down the side — so two of our surfaces
   hold reservations at once, which is new — and `SendInput` opening Task View.

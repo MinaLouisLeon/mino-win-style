@@ -57,6 +57,7 @@ pub enum LookId {
     Jarvis,
     Cupertino,
     Yaru,
+    Zen,
 }
 
 impl LookId {
@@ -67,6 +68,7 @@ impl LookId {
             LookId::Jarvis => "jarvis",
             LookId::Cupertino => "cupertino",
             LookId::Yaru => "yaru",
+            LookId::Zen => "zen",
         }
     }
 
@@ -169,6 +171,16 @@ pub const LOOKS: &[Look] = &[
             edge: mino_shell::Edge::Left,
             hover: false,
         }),
+    },
+    Look {
+        id: LookId::Zen,
+        theme: "zen",
+        // Nothing. A Look does not have to draw anything to be one, and the
+        // quiet one is the obvious place to prove it: the entry, the theme and
+        // the pack are the whole of it.
+        surfaces: &[],
+        pack_id: Some("com.mino.zen"),
+        dock: None,
     },
 ];
 

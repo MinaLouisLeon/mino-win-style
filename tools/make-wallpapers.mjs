@@ -219,6 +219,19 @@ const wallpapers = [
       { x: 0.5, y: 1.05, r: 0.45, strength: 0.18, color: [120, 40, 30] },
     ],
   },
+  {
+    // Zen: warm off-white, one soft rise low in the frame. The quietest entry
+    // here by some distance — no rings, no grid, and a range of about twelve
+    // levels from top to bottom, which is enough to stop it reading as a flat
+    // fill and not enough to be a picture of anything.
+    out: join(root, "packs", "zen", "assets", "wallpaper.png"),
+    top: [244, 241, 234],
+    bottom: [232, 227, 216],
+    glows: [
+      { x: 0.42, y: 0.88, r: 0.7, strength: 0.5, color: [252, 248, 238] },
+      { x: 0.8, y: 0.18, r: 0.5, strength: 0.22, color: [246, 240, 228] },
+    ],
+  },
 ];
 
 for (const spec of wallpapers) {

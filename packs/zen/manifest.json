@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "id": "com.mino.zen",
+  "name": {
+    "en": "Zen",
+    "ar": "سكون"
+  },
+  "author": "mino-win-style",
+  "description": {
+    "en": "The quiet one, and the only light one: warm paper, a sage accent that recedes, no transparency, and a taskbar that gets out of the way with the widgets and recommendations off. It sets fewer settings than any other pack here, on purpose — it does not touch your Start layout or anything in File Explorer, because someone who has arranged those has already decided, and a Look about calm should not undo it.",
+    "ar": "الهادئ، والفاتح الوحيد: ورقٌ دافئ، ولون مريميّ ينسحب إلى الخلف، وبلا شفافية، وشريط مهام ينزوي مع إطفاء الأدوات والتوصيات. ويضبط إعدادات أقل من أي مظهر آخر هنا، عن قصد: لا يمسّ تخطيط قائمة ابدأ ولا شيئًا في مستكشف الملفات، فمن رتّب هذين فقد اختار، ومظهرٌ عن السكون لا ينبغي أن ينقض اختياره."
+  },
+  "requires": {
+    "min_build": 22000,
+    "max_build": null
+  },
+  "settings": {
+    "appearance.dark_mode": false,
+    "appearance.accent_color": "#5E6B5E",
+    "appearance.transparency": false,
+    "appearance.accent_on_titlebars": false,
+    "appearance.accent_on_start_taskbar": false,
+
+    "desktop.wallpaper": "assets/wallpaper.png",
+    "desktop.wallpaper_fit": "fill",
+
+    "taskbar.alignment": "center",
+    "taskbar.auto_hide": true,
+    "taskbar.widgets": false,
+    "taskbar.search": "hidden",
+    "taskbar.task_view": false,
+    "taskbar.seconds_in_clock": false,
+
+    "start.recently_added_apps": false,
+    "start.recommended_files": false
+  }
+}

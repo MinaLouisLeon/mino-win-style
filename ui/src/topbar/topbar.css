@@ -348,3 +348,25 @@ body {
 :root[data-theme="yaru"] .bar__activities:hover {
   background: var(--bar-hover);
 }
+
+/* ---------------- Zen ----------------
+ *
+ * Zen draws no surfaces of its own, so the bar only appears here if someone
+ * switched it on themselves. It still gets a palette: a Fluent strip over
+ * paper would be the one loud thing on a quiet desktop.
+ */
+
+:root[data-theme="zen"] {
+  --bar-bg: rgba(253, 252, 249, 0.9);
+  --bar-ink: #2b2a28;
+  --bar-dim: #8a857a;
+  --bar-line: rgba(43, 42, 40, 0.1);
+  --bar-hover: rgba(43, 42, 40, 0.06);
+  --bar-danger: #9c4128;
+  --bar-radius: 4px;
+}
+
+:root[data-theme="zen"] .bar {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}

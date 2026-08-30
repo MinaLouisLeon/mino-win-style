@@ -8,6 +8,7 @@ import {
   type CSSProperties,
 } from "react";
 
+import { watchShellLook, type LookId } from "../lib/shell-look";
 import { dockApi, type DockItem, type DockLayout, type Edge } from "./api";
 import { useIcons } from "./icons";
 import { Menu, type MenuAction } from "./Menu";
@@ -153,6 +154,15 @@ export function Dock() {
   const [menuHeight, setMenuHeight] = useState(0);
   /** False while the dock is switched off; the window still exists, hidden. */
   const [active, setActive] = useState(true);
+  /**
+   * Which Look is worn, for the one thing that is behaviour rather than colour.
+   *
+   * Zen holds the magnification still: a dock that leaps at the cursor is the
+   * opposite of what that Look is for. Everything else a Look does to the dock
+   * is a block of CSS and never reaches this file.
+   */
+  const [look, setLook] = useState<LookId | null>(null);
+  useEffect(() => watchShellLook((config) => setLook(config.active)), []);
 
   const panel = useRef<HTMLDivElement>(null);
   const menuBox = useRef<HTMLDivElement | null>(null);
@@ -371,7 +381,7 @@ export function Dock() {
 
   // Where the magnification is centred, in rest coordinates. Nowhere while a
   // menu is open: the icons hold still while you choose from it.
-  const at = menu ? null : cursor;
+  const at = menu || look === "zen" ? null : cursor;
   const scales = scalesFor(items.length, iconSize, at);
   // Flexbox centres the panel on its grown width; sliding it back by half the
   // growth returns it to where it rests, and the rest of the slide keeps the

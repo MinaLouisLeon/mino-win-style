@@ -69,6 +69,8 @@
   "dock.placement.right": "Down the right",
   "bar.window": "Window",
   "look.name.yaru": "Yaru",
+  "look.name.zen": "Zen",
+  "look.desc.zen": "The quiet one, and the only light one: warm paper, generous space, a sage accent that recedes. It draws nothing over the desktop at all — no overlay, no bar, no dock — which is the most honest reading of the name. Its pack also sets fewer settings than any other, and deliberately leaves your Start layout and File Explorer exactly as you have them.",
   "look.desc.yaru": "A bar across the top and a dock down the side, in Ubuntu's aubergine and orange. The dock keeps its strip, so windows maximize beside it rather than under it. Activities opens Task View, which is the nearest thing Windows has to the GNOME overview — it is that or nothing, since a button that did neither would be pretending.",
   "look.surface.dock.hover.bottom": "the dock, waiting at the bottom edge",
   "look.surface.dock.hover.left": "the dock, waiting at the left edge",
