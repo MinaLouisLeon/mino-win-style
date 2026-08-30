@@ -7,8 +7,8 @@
   },
   "author": "mino-win-style",
   "description": {
-    "en": "A quiet, dark desktop in the spirit of macOS: system blue accent, transparency on, the taskbar centred and out of the way, and the widgets and clutter turned off.",
-    "ar": "سطح مكتب داكن وهادئ بروح ماك أو إس: أزرق النظام، وشفافية مفعّلة، وشريط مهام في الوسط يختفي عند عدم الحاجة، مع إطفاء الأدوات والزحام."
+    "en": "The desktop the Cupertino Look is drawn on: system blue accent, transparency on so our bar and dock read as the same material as Windows' own surfaces, and the widgets and clutter turned off. The taskbar auto-hides, which matters twice over here — with a menu bar reserved at the top and a dock at the bottom, a permanent taskbar makes three bars on a screen built for one.",
+    "ar": "سطح المكتب الذي يُرسم عليه مظهر كوبرتينو: أزرق النظام، وشفافية مفعّلة ليبدو شريطنا وإرساؤنا من مادة واحدة مع أسطح ويندوز نفسها، مع إطفاء الأدوات والزحام. وشريط المهام ينزوي، ولذلك أهمية مضاعفة هنا: فمع شريط قوائم محجوز أعلى وإرساء أسفل، يصير شريط المهام الدائم ثالث شريط على شاشة بُنيت لواحد."
   },
   "requires": {
     "min_build": 22000,

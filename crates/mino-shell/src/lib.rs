@@ -6,8 +6,10 @@
 //! enumerates windows, reads icons out of executables, and asks Windows to bring
 //! a window forward, all through the documented API.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
+#[cfg(windows)]
+pub mod appbar;
 #[cfg(windows)]
 mod telemetry;
 #[cfg(windows)]
@@ -33,12 +35,160 @@ pub struct Icon {
     pub rgba: Vec<u8>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct WorkArea {
     pub x: i32,
     pub y: i32,
     pub width: i32,
     pub height: i32,
+}
+
+/// Which side of the screen a surface sits on.
+///
+/// Only `Top` is used today — it is what the bar wears. The other three are
+/// here because the appbar dance is identical for all four and writing it once
+/// is what makes a dock down the left side a placement rather than a rewrite.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Edge {
+    #[default]
+    Top,
+    Bottom,
+    Left,
+    Right,
+}
+
+/// The rectangle a strip of `thickness` wants along one edge of a monitor.
+///
+/// Pure, and deliberately not left inline in the appbar code: this is the
+/// arithmetic that puts a bar half off the screen when it is wrong, and here it
+/// can be checked on any machine.
+pub fn bar_rect(monitor: WorkArea, edge: Edge, thickness: i32) -> WorkArea {
+    let along_y = thickness.clamp(0, monitor.height.max(0));
+    let along_x = thickness.clamp(0, monitor.width.max(0));
+
+    match edge {
+        Edge::Top => WorkArea {
+            height: along_y,
+            ..monitor
+        },
+        Edge::Bottom => WorkArea {
+            y: monitor.y + monitor.height - along_y,
+            height: along_y,
+            ..monitor
+        },
+        Edge::Left => WorkArea {
+            width: along_x,
+            ..monitor
+        },
+        Edge::Right => WorkArea {
+            x: monitor.x + monitor.width - along_x,
+            width: along_x,
+            ..monitor
+        },
+    }
+}
+
+/// Where a panel of this size sits along one edge of the work area.
+///
+/// The dock, in other words: centred along the edge it lives on, and flush
+/// against it. A bar spans its edge and a dock does not, which is the whole
+/// difference between this and [`bar_rect`].
+///
+/// Pure, and here rather than in the Tauri module, because a dock placed a few
+/// pixels wrong is off the screen and a dock placed on the wrong axis is a
+/// column of icons across the middle of the desktop.
+pub fn dock_rect(work: WorkArea, edge: Edge, width: i32, height: i32) -> WorkArea {
+    let width = width.clamp(0, work.width.max(0));
+    let height = height.clamp(0, work.height.max(0));
+
+    let centred_x = work.x + (work.width - width) / 2;
+    let centred_y = work.y + (work.height - height) / 2;
+
+    match edge {
+        Edge::Bottom => WorkArea {
+            x: centred_x,
+            y: work.y + work.height - height,
+            width,
+            height,
+        },
+        Edge::Top => WorkArea {
+            x: centred_x,
+            y: work.y,
+            width,
+            height,
+        },
+        Edge::Left => WorkArea {
+            x: work.x,
+            y: centred_y,
+            width,
+            height,
+        },
+        Edge::Right => WorkArea {
+            x: work.x + work.width - width,
+            y: centred_y,
+            width,
+            height,
+        },
+    }
+}
+
+/// Whether a surface on this edge stacks top to bottom rather than left to
+/// right. The one question the dock's layout actually asks about its edge.
+pub fn is_vertical(edge: Edge) -> bool {
+    matches!(edge, Edge::Left | Edge::Right)
+}
+
+/// Whether the pointer has reached the edge a hidden surface lives on.
+///
+/// `band` is how many pixels count as "at the edge". Two is enough: the pointer
+/// stops at the last row of the screen whatever speed it was moving, and a
+/// wider band means a dock that appears when nobody asked for it.
+///
+/// Pure, because the alternative to reading this from a test is reading it by
+/// waving a mouse at a screen.
+pub fn at_edge(cursor: (i32, i32), area: WorkArea, edge: Edge, band: i32) -> bool {
+    let (x, y) = cursor;
+    let band = band.max(1);
+    match edge {
+        Edge::Top => y <= area.y + band && x >= area.x && x < area.x + area.width,
+        Edge::Bottom => y >= area.y + area.height - band && x >= area.x && x < area.x + area.width,
+        Edge::Left => x <= area.x + band && y >= area.y && y < area.y + area.height,
+        Edge::Right => x >= area.x + area.width - band && y >= area.y && y < area.y + area.height,
+    }
+}
+
+/// Whether the pointer is inside a rectangle, `margin` pixels of slack included.
+///
+/// The slack is what stops a revealed dock from flickering shut when the
+/// pointer crosses a gap between two icons at the very edge of the panel.
+pub fn within(cursor: (i32, i32), area: WorkArea, margin: i32) -> bool {
+    let (x, y) = cursor;
+    let margin = margin.max(0);
+    x >= area.x - margin
+        && x < area.x + area.width + margin
+        && y >= area.y - margin
+        && y < area.y + area.height + margin
+}
+
+/// Physical pixels to the logical ones every window placement call wants, as
+/// `(x, y, width, height)`.
+///
+/// The guard on `scale` is not defensive programming for its own sake: a scale
+/// factor of zero would divide a placement into infinity, and a window placed
+/// at infinity is gone with no error anywhere.
+pub fn logical(area: WorkArea, scale: f64) -> (f64, f64, f64, f64) {
+    let scale = if scale.is_finite() && scale > 0.0 {
+        scale
+    } else {
+        1.0
+    };
+    (
+        f64::from(area.x) / scale,
+        f64::from(area.y) / scale,
+        f64::from(area.width) / scale,
+        f64::from(area.height) / scale,
+    )
 }
 
 /// What the machine is doing right now, for the HUD to draw.
@@ -71,8 +221,8 @@ pub struct Battery {
 pub use telemetry::Sampler;
 #[cfg(windows)]
 pub use windows_impl::{
-    activate, close, icon_rgba, is_maximized, launch, minimize, screen_area, toggle_maximize,
-    windows, work_area,
+    activate, close, cursor_pos, foreground, icon_rgba, is_maximized, launch, minimize,
+    screen_area, task_view, toggle_maximize, windows, work_area,
 };
 
 /// One entry on the dock: an application, whether or not it is running.
@@ -152,6 +302,153 @@ pub fn display_name(exe: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const SCREEN: WorkArea = WorkArea {
+        x: 0,
+        y: 0,
+        width: 1920,
+        height: 1080,
+    };
+
+    #[test]
+    fn a_top_bar_spans_the_width_and_sits_at_the_top() {
+        let bar = bar_rect(SCREEN, Edge::Top, 26);
+        assert_eq!(
+            bar,
+            WorkArea {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 26
+            }
+        );
+    }
+
+    #[test]
+    fn the_other_three_edges_are_the_same_arithmetic() {
+        assert_eq!(bar_rect(SCREEN, Edge::Bottom, 26).y, 1054);
+        assert_eq!(bar_rect(SCREEN, Edge::Left, 64).width, 64);
+        assert_eq!(bar_rect(SCREEN, Edge::Right, 64).x, 1856);
+        // A left or right bar is as tall as the screen; a top or bottom one is
+        // as wide.
+        assert_eq!(bar_rect(SCREEN, Edge::Left, 64).height, 1080);
+        assert_eq!(bar_rect(SCREEN, Edge::Bottom, 26).width, 1920);
+    }
+
+    #[test]
+    fn a_monitor_that_does_not_start_at_the_origin_is_still_covered() {
+        // A primary monitor to the right of another one has a non-zero x, and
+        // a bar that ignored it would be drawn on the wrong screen.
+        let secondary = WorkArea {
+            x: -1920,
+            y: 120,
+            width: 1280,
+            height: 720,
+        };
+        let bar = bar_rect(secondary, Edge::Top, 30);
+        assert_eq!(
+            (bar.x, bar.y, bar.width, bar.height),
+            (-1920, 120, 1280, 30)
+        );
+    }
+
+    #[test]
+    fn a_bar_cannot_be_thicker_than_the_screen_it_is_on() {
+        // Nonsense in the config file is a strip that covers the desktop and
+        // cannot be clicked past, so it is clamped rather than trusted.
+        assert_eq!(bar_rect(SCREEN, Edge::Top, 99_999).height, 1080);
+        assert_eq!(bar_rect(SCREEN, Edge::Top, -5).height, 0);
+    }
+
+    #[test]
+    fn placement_divides_by_the_scale_factor() {
+        let (x, y, width, height) = logical(bar_rect(SCREEN, Edge::Top, 26), 1.5);
+        assert_eq!((x, y), (0.0, 0.0));
+        assert_eq!(width, 1280.0);
+        assert!((height - 17.333_333).abs() < 0.001);
+    }
+
+    #[test]
+    fn a_nonsense_scale_factor_places_at_one_rather_than_at_infinity() {
+        let area = bar_rect(SCREEN, Edge::Top, 26);
+        assert_eq!(logical(area, 0.0), (0.0, 0.0, 1920.0, 26.0));
+        assert_eq!(logical(area, f64::NAN), (0.0, 0.0, 1920.0, 26.0));
+    }
+
+    #[test]
+    fn a_dock_is_centred_along_the_edge_it_lives_on() {
+        let bottom = dock_rect(SCREEN, Edge::Bottom, 600, 140);
+        assert_eq!((bottom.x, bottom.y), (660, 940));
+
+        let left = dock_rect(SCREEN, Edge::Left, 88, 620);
+        assert_eq!((left.x, left.y), (0, 230));
+
+        let right = dock_rect(SCREEN, Edge::Right, 88, 620);
+        assert_eq!((right.x, right.y), (1832, 230));
+    }
+
+    #[test]
+    fn a_dock_on_a_second_monitor_is_placed_on_that_monitor() {
+        let work = WorkArea {
+            x: -1920,
+            y: 0,
+            width: 1920,
+            height: 1040,
+        };
+        let left = dock_rect(work, Edge::Left, 88, 600);
+        assert_eq!(left.x, -1920, "flush against that screen, not against zero");
+        assert_eq!(left.y, 220);
+    }
+
+    #[test]
+    fn a_dock_bigger_than_the_screen_is_clamped_to_it() {
+        let huge = dock_rect(SCREEN, Edge::Left, 88, 99_999);
+        assert_eq!(huge.height, 1080);
+        assert_eq!(huge.y, 0);
+    }
+
+    #[test]
+    fn only_the_side_edges_stack_downwards() {
+        assert!(is_vertical(Edge::Left));
+        assert!(is_vertical(Edge::Right));
+        assert!(!is_vertical(Edge::Bottom));
+        assert!(!is_vertical(Edge::Top));
+    }
+
+    #[test]
+    fn the_edge_is_the_last_row_of_the_screen_and_not_a_region() {
+        // The pointer stops at the last row however fast it was moving, so the
+        // band is small on purpose: wider, and the dock appears unasked.
+        assert!(at_edge((900, 1079), SCREEN, Edge::Bottom, 2));
+        assert!(at_edge((900, 1078), SCREEN, Edge::Bottom, 2));
+        assert!(!at_edge((900, 1060), SCREEN, Edge::Bottom, 2));
+        assert!(at_edge((900, 0), SCREEN, Edge::Top, 2));
+    }
+
+    #[test]
+    fn the_edge_of_one_screen_is_not_the_edge_of_the_next() {
+        // A pointer at the bottom of a second monitor is not at the bottom of
+        // this one, and a dock that came up for it would come up on the wrong
+        // screen.
+        assert!(!at_edge((-400, 1079), SCREEN, Edge::Bottom, 2));
+        assert!(!at_edge((2400, 1079), SCREEN, Edge::Bottom, 2));
+    }
+
+    #[test]
+    fn a_revealed_surface_keeps_a_little_slack_around_itself() {
+        let dock = WorkArea {
+            x: 660,
+            y: 940,
+            width: 600,
+            height: 140,
+        };
+        assert!(within((960, 1000), dock, 0));
+        // Just outside, but inside the slack: crossing a gap between icons at
+        // the edge of the panel must not close it.
+        assert!(!within((960, 930), dock, 0));
+        assert!(within((960, 930), dock, 12));
+        assert!(!within((300, 1000), dock, 12));
+    }
 
     #[test]
     fn names_come_from_the_file_stem() {

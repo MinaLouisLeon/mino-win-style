@@ -13,6 +13,9 @@ path = "src/main.rs"
 
 [dependencies]
 mino-core = { workspace = true }
+# For `shell-reset` alone: the appbar reservation lives with the surfaces that
+# make it, and the recovery for it has to be reachable without the app.
+mino-shell = { workspace = true }
 mino-win = { workspace = true }
 # `color` is off deliberately: it pulls anstream -> windows-sys, and a recovery
 # tool whose output gets piped into a log is better off plain anyway.

@@ -6,15 +6,21 @@ import { Category } from "./routes/Category";
 import { History } from "./routes/History";
 import { Looks } from "./routes/Looks";
 import { useI18n } from "./i18n";
-import { applyJarvisTheme } from "./lib/jarvis";
+import { applyLookTheme } from "./lib/shell-look";
 import * as sound from "./lib/sound";
 import {
   api,
   inTauri,
   type Category as Cat,
-  type JarvisConfig,
   type JournalEntry,
   type DockConfig,
+  type DockWish,
+  type Edge,
+  type LookId,
+  type LookInfo,
+  type ShellConfig,
+  type Surface,
+  type TopBarConfig,
   type OsBuild,
   type PackSummary,
   type Plan,
@@ -24,9 +30,22 @@ import {
 
 type View = "home" | "looks" | Cat | "history";
 
-/** The Look that goes with JARVIS mode, offered — never applied — when the
- *  mode is switched on. Matches `packs/jarvis/manifest.json`. */
-const JARVIS_PACK = "com.mino.jarvis";
+/**
+ * Which edge a Look's dock actually goes on, once the reading direction is
+ * taken into account.
+ *
+ * A dock down the left is where Ubuntu puts it, and in Arabic that is the far
+ * side of the screen from where everything else begins. This is the only place
+ * in the app where a Look's *geometry* is a language question rather than a
+ * styling one — and it only ever applies to the edge being offered, never to a
+ * dock someone has already placed themselves.
+ */
+function edgeFor(edge: Edge, lang: string): Edge {
+  if (lang !== "ar") return edge;
+  if (edge === "left") return "right";
+  if (edge === "right") return "left";
+  return edge;
+}
 
 const CATEGORIES: Cat[] = ["appearance", "desktop", "taskbar", "start", "explorer"];
 
@@ -40,9 +59,25 @@ export default function App() {
   const [journalDir, setJournalDir] = useState("");
   const [packs, setPacks] = useState<PackSummary[]>([]);
   const [dock, setDock] = useState<DockConfig | null>(null);
-  const [jarvis, setJarvis] = useState<JarvisConfig | null>(null);
+  const [bar, setBar] = useState<TopBarConfig | null>(null);
+  const [shell, setShell] = useState<ShellConfig | null>(null);
+  /** The registry of Looks, from Rust. The UI keeps no list of its own. */
+  const [looks, setLooks] = useState<LookInfo[]>([]);
   /** Set while a Look is waiting in the confirmation dialog. */
   const [pendingPack, setPendingPack] = useState<string | null>(null);
+  /**
+   * Set while a Look is asking for surfaces it wants but does not have.
+   *
+   * The pack it also wants to offer rides along, because the two questions have
+   * to be asked in order rather than on top of each other: surfaces first —
+   * they are ours and instant — then the pack, which writes to the machine.
+   */
+  const [surfaceAsk, setSurfaceAsk] = useState<{
+    wants: Surface[];
+    pack: PackSummary | null;
+    /** How this Look wants the dock, if it is the dock being offered. */
+    dock: DockWish | null;
+  } | null>(null);
 
   const [pending, setPending] = useState<Record<string, Value>>({});
   const [plan, setPlan] = useState<Plan | null>(null);
@@ -52,22 +87,27 @@ export default function App() {
   const [message, setMessage] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    const [osInfo, list, history, dir, looks, dockConfig, jarvisConfig] = await Promise.all([
-      api.osInfo(),
-      api.listTweaks(),
-      api.history(),
-      api.journalDir(),
-      api.listPacks(),
-      api.dockConfig(),
-      api.jarvisConfig(),
-    ]);
+    const [osInfo, list, history, dir, packList, dockConfig, barConfig, shellConfig, lookList] =
+      await Promise.all([
+        api.osInfo(),
+        api.listTweaks(),
+        api.history(),
+        api.journalDir(),
+        api.listPacks(),
+        api.dockConfig(),
+        api.topBarConfig(),
+        api.shellConfig(),
+        api.shellLooks(),
+      ]);
     setOs(osInfo);
     setTweaks(list);
     setEntries(history);
     setJournalDir(dir);
-    setPacks(looks);
+    setPacks(packList);
     setDock(dockConfig);
-    setJarvis(jarvisConfig);
+    setBar(barConfig);
+    setShell(shellConfig);
+    setLooks(lookList);
   }, []);
 
   useEffect(() => {
@@ -86,9 +126,9 @@ export default function App() {
   // The skin, and whether the app is allowed to make a noise. Both follow the
   // config wherever it was changed from, including another window.
   useEffect(() => {
-    applyJarvisTheme(jarvis?.enabled ?? false);
-    sound.setSoundEnabled(Boolean(jarvis?.enabled && jarvis.sound));
-  }, [jarvis?.enabled, jarvis?.sound]);
+    applyLookTheme(shell?.active ?? null);
+    sound.setSoundEnabled(Boolean(shell?.active === "jarvis" && shell.sound));
+  }, [shell?.active, shell?.sound]);
 
   // Interface blips, added by delegation rather than by putting a handler on
   // every control: there are a few dozen of them, and none should have to know
@@ -99,7 +139,7 @@ export default function App() {
   // control was last entered.
   const lastHovered = useRef<Element | null>(null);
   useEffect(() => {
-    if (!jarvis?.enabled || !jarvis.sound) return;
+    if (shell?.active !== "jarvis" || !shell.sound) return;
 
     const controlUnder = (event: Event) =>
       (event.target as HTMLElement | null)?.closest?.("button, .switch, .dock-toggle, .input") ??
@@ -121,34 +161,37 @@ export default function App() {
       document.removeEventListener("mousedown", down);
       lastHovered.current = null;
     };
-  }, [jarvis?.enabled, jarvis?.sound]);
+  }, [shell?.active, shell?.sound]);
 
   /** The line the HUD shows, spoken. Built here because this is where the
    *  dictionary is, and where the user gesture that permits speech happened. */
-  const spokenGreeting = (config: JarvisConfig) => {
+  const spokenGreeting = (config: ShellConfig) => {
     const greeting = t(`hud.greeting.${sound.greetingKey()}`);
     const address = config.address ? t("hud.address", { name: config.address }) : "";
     return `${greeting}${address}. ${t("hud.nominal")}`;
   };
 
   /**
-   * Turns the mode on or off.
+   * Puts a Look on, or takes the current one off with `null`.
    *
-   * The HUD and the skin happen immediately — they are ours and they change
-   * nothing on the machine. The Look is only *offered*: `reviewPack` opens the
-   * same confirmation screen every other change goes through, and declining it
-   * leaves JARVIS mode on with the desktop untouched.
+   * The overlay and the skin happen immediately — they are ours and they change
+   * nothing on the machine. The pack that goes with the Look is only *offered*:
+   * `reviewPack` opens the same confirmation screen every other change goes
+   * through, and declining it leaves the Look worn with the desktop untouched.
    */
-  const setJarvisEnabled = async (enabled: boolean) => {
+  const setLook = async (id: LookId | null) => {
     try {
-      const next = await api.jarvisSetEnabled(enabled);
-      setJarvis(next);
+      const next = await api.shellSetLook(id);
+      setShell(next);
 
+      // Only JARVIS has a voice, so only JARVIS greets and says goodbye.
+      //
       // Set before playing, not left to the effect above: this click is the
       // user gesture the browser wants, and by the next render it is spent.
-      sound.setSoundEnabled(next.enabled && next.sound);
+      const speaks = next.active === "jarvis";
+      sound.setSoundEnabled(speaks && next.sound);
       if (next.sound) {
-        if (enabled) {
+        if (speaks) {
           sound.bootSweep();
           sound.speak(spokenGreeting(next), lang);
         } else {
@@ -157,23 +200,75 @@ export default function App() {
         }
       }
 
-      if (enabled) {
-        const look = packs.find((pack) => pack.id === JARVIS_PACK && pack.applicable);
-        if (look) await reviewPack(look);
-      }
+      // What this Look wants, and what it already has. The Look names both, so
+      // this stays true as Looks are added.
+      const info = id ? (looks.find((look) => look.id === id) ?? null) : null;
+      const packId = info?.pack_id ?? null;
+      const offered = packId
+        ? (packs.find((pack) => pack.id === packId && pack.applicable) ?? null)
+        : null;
+
+      // Surfaces it wants that are not already on. The overlay is never in this
+      // list: it is ours, it changes nothing on the machine, and Rust has
+      // already shown it. The dock and the bar belong to the user.
+      const wants = (info?.surfaces ?? []).filter((surface) =>
+        surface === "dock" ? !dock?.enabled : surface === "top-bar" ? !bar?.enabled : false,
+      );
+
+      if (wants.length > 0) setSurfaceAsk({ wants, pack: offered, dock: info?.dock ?? null });
+      else if (offered) await reviewPack(offered);
     } catch (err) {
       setMessage(String(err));
     }
   };
 
-  const setJarvisOptions = async (options: {
+  /**
+   * The answer to the surface offer.
+   *
+   * Declining is a real answer, not a cancel: the Look stays on with the skin
+   * and nothing else, which is the same shape as declining its pack. Either way
+   * the pack question follows, because it was never the same question.
+   */
+  const answerSurfaces = async (accept: boolean) => {
+    const ask = surfaceAsk;
+    setSurfaceAsk(null);
+    if (!ask) return;
+
+    if (accept) {
+      try {
+        for (const surface of ask.wants) {
+          if (surface === "dock") {
+            await api.dockSetEnabled(true);
+            // Where the dock goes and whether it waits at that edge are part of
+            // what was accepted — the offer names both — and this is the only
+            // place that sets either. Someone who already had a dock keeps
+            // theirs exactly as it was, because they were never asked.
+            if (ask.dock) {
+              await api.dockSetPlacement(edgeFor(ask.dock.edge, lang));
+              setDock(await api.dockSetReveal(ask.dock.hover));
+            } else {
+              setDock(await api.dockConfig());
+            }
+          } else if (surface === "top-bar") {
+            setBar(await api.topBarSetEnabled(true));
+          }
+        }
+      } catch (err) {
+        setMessage(String(err));
+      }
+    }
+
+    if (ask.pack) await reviewPack(ask.pack);
+  };
+
+  const setLookOptions = async (options: {
     sound?: boolean;
     telemetry?: boolean;
     address?: string;
   }) => {
     try {
-      const next = await api.jarvisSetOptions(options);
-      setJarvis(next);
+      const next = await api.shellSetOptions(options);
+      setShell(next);
       // Turning sound on should prove it did something.
       if (options.sound === true) {
         sound.setSoundEnabled(true);
@@ -334,9 +429,32 @@ export default function App() {
                 setMessage(String(err));
               }
             }}
-            jarvis={jarvis}
-            onJarvisChange={setJarvisEnabled}
-            onJarvisOptions={setJarvisOptions}
+            onDockReveal={async (hover) => {
+              try {
+                setDock(await api.dockSetReveal(hover));
+              } catch (err) {
+                setMessage(String(err));
+              }
+            }}
+            onDockPlacement={async (edge) => {
+              try {
+                setDock(await api.dockSetPlacement(edge));
+              } catch (err) {
+                setMessage(String(err));
+              }
+            }}
+            bar={bar}
+            onBarChange={async (enabled) => {
+              try {
+                setBar(await api.topBarSetEnabled(enabled));
+              } catch (err) {
+                setMessage(String(err));
+              }
+            }}
+            shell={shell}
+            looks={looks}
+            onLookChange={setLook}
+            onLookOptions={setLookOptions}
             onRevertAll={() => setConfirmRevertAll(true)}
             onOpenCategory={(category) => setView(category)}
           />
@@ -385,6 +503,29 @@ export default function App() {
           setPendingPack(null);
         }}
       />
+
+      {surfaceAsk && (
+        <Ask
+          title={t("look.surfaces.title")}
+          body={`${t("look.surfaces.body")} ${surfaceAsk.wants
+            .map((surface) =>
+              surface === "dock" && surfaceAsk.dock
+                ? t(
+                    `look.surface.dock.${surfaceAsk.dock.hover ? "hover" : "fixed"}.${edgeFor(
+                      surfaceAsk.dock.edge,
+                      lang,
+                    )}`,
+                  )
+                : t(`look.surface.${surface}`),
+            )
+            .join(t("common.listSep"))}`}
+          confirm={t("look.surfaces.yes")}
+          cancel={t("look.surfaces.no")}
+          busy={busy}
+          onConfirm={() => void answerSurfaces(true)}
+          onCancel={() => void answerSurfaces(false)}
+        />
+      )}
 
       {restartAsk && (
         <Ask

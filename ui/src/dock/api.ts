@@ -15,18 +15,24 @@ export interface DockItem {
   windows: AppWindow[];
 }
 
+/** Which edge the dock lives on. Mirrors `Edge` in `mino-shell`. */
+export type Edge = "top" | "bottom" | "left" | "right";
+
 export interface DockLayout {
   work_x: number;
   work_y: number;
   work_width: number;
   work_height: number;
   icon_size: number;
+  edge: Edge;
 }
 
 export interface DockConfig {
   enabled: boolean;
   pinned: string[];
   icon_size: number;
+  reveal: "always" | "hover";
+  placement: Edge;
 }
 
 export interface IconData {
@@ -46,7 +52,10 @@ export const dockApi = {
   icon: (exe: string, size: number) => invoke<IconData | null>("dock_icon", { exe, size }),
   activate: (hwnd: number) => invoke<boolean>("dock_activate", { hwnd }),
   launch: (target: string) => invoke<boolean>("dock_launch", { target }),
-  place: (width: number, height: number) => invoke<void>("dock_place", { width, height }),
+  /** `thickness` is the panel alone. On an edge that reserves space it is what
+   *  the desktop gives up, so it must not include the room kept for menus. */
+  place: (width: number, height: number, thickness: number) =>
+    invoke<void>("dock_place", { width, height, thickness }),
   config: () => invoke<DockConfig>("dock_config"),
   minimize: (hwnd: number) => invoke<boolean>("dock_minimize", { hwnd }),
   toggleMaximize: (hwnd: number) => invoke<boolean>("dock_toggle_maximize", { hwnd }),

@@ -1,12 +1,16 @@
 import type {
   Category as Cat,
   DockConfig,
-  JarvisConfig,
+  Edge,
   JournalEntry,
+  LookId,
+  LookInfo,
   OsBuild,
+  ShellConfig,
+  TopBarConfig,
   TweakState,
 } from "../lib/api";
-import { JarvisPanel } from "../components/JarvisPanel";
+import { LookPanel } from "../components/LookPanel";
 import { useI18n } from "../i18n";
 
 interface Props {
@@ -16,9 +20,14 @@ interface Props {
   journalDir: string;
   dock: DockConfig | null;
   onDockChange: (enabled: boolean) => void;
-  jarvis: JarvisConfig | null;
-  onJarvisChange: (enabled: boolean) => void;
-  onJarvisOptions: (options: { sound?: boolean; telemetry?: boolean; address?: string }) => void;
+  onDockReveal: (hover: boolean) => void;
+  onDockPlacement: (edge: Edge) => void;
+  bar: TopBarConfig | null;
+  onBarChange: (enabled: boolean) => void;
+  shell: ShellConfig | null;
+  looks: LookInfo[];
+  onLookChange: (id: LookId | null) => void;
+  onLookOptions: (options: { sound?: boolean; telemetry?: boolean; address?: string }) => void;
   onRevertAll: () => void;
   onOpenCategory: (category: Cat) => void;
 }
@@ -32,9 +41,14 @@ export function Home({
   journalDir,
   dock,
   onDockChange,
-  jarvis,
-  onJarvisChange,
-  onJarvisOptions,
+  onDockReveal,
+  onDockPlacement,
+  bar,
+  onBarChange,
+  shell,
+  looks,
+  onLookChange,
+  onLookOptions,
   onRevertAll,
   onOpenCategory,
 }: Props) {
@@ -105,10 +119,11 @@ export function Home({
         })}
       </section>
 
-      <JarvisPanel
-        config={jarvis}
-        onEnabledChange={onJarvisChange}
-        onOptionsChange={onJarvisOptions}
+      <LookPanel
+        config={shell}
+        looks={looks}
+        onLookChange={onLookChange}
+        onOptionsChange={onLookOptions}
       />
 
       <section className="panel">
@@ -123,7 +138,54 @@ export function Home({
           />
           <span>{t("dock.show")}</span>
         </label>
+        {/* Only once there is a dock to arrange. Preferences for something
+            that is switched off are controls with nothing behind them.
+
+            The edge matters more than it looks: a Look that offered a dock down
+            the side put it there, and without this there would be no way back
+            to the bottom short of editing dock.json. */}
+        {dock?.enabled && (
+          <>
+            <label className="field field--inline">
+              <span>{t("dock.placement")}</span>
+              <select
+                className="input"
+                value={dock.placement}
+                onChange={(e) => onDockPlacement(e.target.value as Edge)}
+              >
+                <option value="bottom">{t("dock.placement.bottom")}</option>
+                <option value="left">{t("dock.placement.left")}</option>
+                <option value="right">{t("dock.placement.right")}</option>
+              </select>
+            </label>
+
+            <label className="dock-toggle">
+              <input
+                type="checkbox"
+                checked={dock.reveal === "hover"}
+                onChange={(e) => onDockReveal(e.target.checked)}
+              />
+              <span>{t("dock.hover")}</span>
+            </label>
+          </>
+        )}
+
         <p className="muted small">{t("dock.note")}</p>
+      </section>
+
+      <section className="panel">
+        <h2>{t("bar.title")}</h2>
+        <p className="muted">{t("bar.body")}</p>
+        <label className="dock-toggle">
+          <input
+            type="checkbox"
+            checked={bar?.enabled ?? false}
+            disabled={!bar}
+            onChange={(e) => onBarChange(e.target.checked)}
+          />
+          <span>{t("bar.show")}</span>
+        </label>
+        <p className="muted small">{t("bar.note")}</p>
       </section>
 
       <section className="panel">

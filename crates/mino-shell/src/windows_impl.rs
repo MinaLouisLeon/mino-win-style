@@ -18,14 +18,20 @@ use windows::Win32::Graphics::Gdi::{
     MONITOR_DEFAULTTOPRIMARY,
 };
 use windows::Win32::System::Threading::{
-    OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION,
+    GetCurrentProcessId, OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32,
+    PROCESS_QUERY_LIMITED_INFORMATION,
+};
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+    SendInput, INPUT, INPUT_KEYBOARD, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, VK_LWIN,
+    VK_TAB,
 };
 use windows::Win32::UI::Shell::ShellExecuteW;
 use windows::Win32::UI::WindowsAndMessaging::{
-    DestroyIcon, EnumWindows, GetIconInfo, GetWindow, GetWindowLongPtrW, GetWindowTextLengthW,
-    GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindowVisible, IsZoomed, PostMessageW,
-    PrivateExtractIconsW, SetForegroundWindow, ShowWindow, GWL_EXSTYLE, GW_OWNER, HICON, ICONINFO,
-    SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, SW_SHOWNORMAL, WM_CLOSE, WS_EX_TOOLWINDOW,
+    DestroyIcon, EnumWindows, GetCursorPos, GetForegroundWindow, GetIconInfo, GetWindow,
+    GetWindowLongPtrW, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, IsIconic,
+    IsWindowVisible, IsZoomed, PostMessageW, PrivateExtractIconsW, SetForegroundWindow, ShowWindow,
+    GWL_EXSTYLE, GW_OWNER, HICON, ICONINFO, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, SW_SHOWNORMAL,
+    WM_CLOSE, WS_EX_TOOLWINDOW,
 };
 
 use crate::{AppWindow, Icon, WorkArea};
@@ -46,47 +52,80 @@ pub fn windows() -> Vec<AppWindow> {
 
 unsafe extern "system" fn collect(hwnd: HWND, lparam: LPARAM) -> BOOL {
     let out = &mut *(lparam.0 as *mut Vec<AppWindow>);
+    if let Some(window) = describe(hwnd) {
+        out.push(window);
+    }
+    TRUE
+}
 
+/// One window, if it is one of somebody else's that a surface of ours should
+/// show. `None` for everything else, including our own windows.
+///
+/// Shared by the dock's enumeration and by [`foreground`], which is the point:
+/// a window the dock refuses to list is not one the bar should put a name to
+/// either.
+unsafe fn describe(hwnd: HWND) -> Option<AppWindow> {
     if !IsWindowVisible(hwnd).as_bool() {
-        return TRUE;
+        return None;
     }
 
     // Owned windows are dialogs and palettes belonging to something else.
     if GetWindow(hwnd, GW_OWNER).is_ok_and(|owner| !owner.0.is_null()) {
-        return TRUE;
+        return None;
     }
 
     let ex_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32;
     if ex_style & WS_EX_TOOLWINDOW.0 != 0 {
-        return TRUE;
+        return None;
     }
 
     if is_cloaked(hwnd) {
-        return TRUE;
+        return None;
     }
 
     let title = window_text(hwnd);
     if title.trim().is_empty() {
-        return TRUE;
+        return None;
     }
 
-    let Some(exe) = process_path(hwnd) else {
-        return TRUE;
-    };
-
-    // Our own dock and settings window have no business being on the dock.
-    if exe.to_lowercase().ends_with("mino-win-style.exe") {
-        return TRUE;
+    let mut pid: u32 = 0;
+    GetWindowThreadProcessId(hwnd, Some(&mut pid));
+    if pid == 0 {
+        return None;
     }
 
-    out.push(AppWindow {
+    // Our own windows have no business on our own surfaces. Compared by process
+    // id rather than by the name of the executable: the dock, the overlay, the
+    // bar and the settings window are all this process, whatever it was built
+    // or renamed as, and the bar in particular has to be able to tell "the user
+    // clicked me" from "the user switched application".
+    if pid == GetCurrentProcessId() {
+        return None;
+    }
+
+    Some(AppWindow {
         hwnd: hwnd.0 as isize,
         title,
-        exe,
+        exe: process_path(pid)?,
         minimized: IsIconic(hwnd).as_bool(),
         maximized: IsZoomed(hwnd).as_bool(),
-    });
-    TRUE
+    })
+}
+
+/// Whatever the user is working in, or `None` when that is one of ours.
+///
+/// `None` is the answer the bar needs when its own window is clicked: it keeps
+/// showing the last application rather than renaming itself, which is the whole
+/// difference between a menu bar and a window that says "Mino" the moment you
+/// look at it.
+pub fn foreground() -> Option<AppWindow> {
+    unsafe {
+        let hwnd = GetForegroundWindow();
+        if hwnd.0.is_null() {
+            return None;
+        }
+        describe(hwnd)
+    }
 }
 
 fn is_cloaked(hwnd: HWND) -> bool {
@@ -114,13 +153,8 @@ fn window_text(hwnd: HWND) -> String {
     }
 }
 
-fn process_path(hwnd: HWND) -> Option<String> {
+fn process_path(pid: u32) -> Option<String> {
     unsafe {
-        let mut pid: u32 = 0;
-        GetWindowThreadProcessId(hwnd, Some(&mut pid));
-        if pid == 0 {
-            return None;
-        }
         // LIMITED_INFORMATION so this works without elevation.
         let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).ok()?;
         let mut buffer = vec![0u16; MAX_PATH as usize];
@@ -323,6 +357,54 @@ pub fn launch(target: &str) -> bool {
         // ShellExecute returns >32 on success. It is an HINSTANCE for
         // historical reasons and means nothing else.
         result.0 as isize > 32
+    }
+}
+
+/// Opens Task View, by pressing Win+Tab the way a keyboard would.
+///
+/// GNOME's Activities overview has no counterpart we can draw, and Task View is
+/// the closest thing Windows has. `SendInput` is the documented way to say a
+/// key was pressed; nothing is injected into another process and no hook is
+/// installed. The alternative was a button on the bar that looked like
+/// Activities and did nothing, which is the same lie as a greyed-out File menu.
+pub fn task_view() -> bool {
+    let mut input = [INPUT::default(); 4];
+    let keys = [
+        (VK_LWIN, KEYBD_EVENT_FLAGS(0)),
+        (VK_TAB, KEYBD_EVENT_FLAGS(0)),
+        (VK_TAB, KEYEVENTF_KEYUP),
+        (VK_LWIN, KEYEVENTF_KEYUP),
+    ];
+
+    for (slot, (key, flags)) in input.iter_mut().zip(keys) {
+        slot.r#type = INPUT_KEYBOARD;
+        slot.Anonymous.ki = KEYBDINPUT {
+            wVk: key,
+            wScan: 0,
+            dwFlags: flags,
+            time: 0,
+            dwExtraInfo: 0,
+        };
+    }
+
+    unsafe {
+        let sent = SendInput(&input, std::mem::size_of::<INPUT>() as i32);
+        sent as usize == input.len()
+    }
+}
+
+/// Where the pointer is, in physical screen pixels.
+///
+/// A poll rather than a hook. Watching for the pointer reaching the bottom of
+/// the screen could be done with `SetWindowsHookEx`, and is not: a hook is a
+/// callback in every process that moves a mouse, which is the kind of thing
+/// this project does not do even where it is documented. `GetCursorPos` asks
+/// once and is told, and the dock already polls for its window list.
+pub fn cursor_pos() -> Option<(i32, i32)> {
+    unsafe {
+        let mut point = POINT { x: 0, y: 0 };
+        GetCursorPos(&mut point).ok()?;
+        Some((point.x, point.y))
     }
 }
 

@@ -266,6 +266,87 @@ body {
   }
 }
 
+/* ---------------- standing up ----------------
+ *
+ * Yaru's dock runs down the side of the screen. Everything above is written for
+ * a dock along the bottom, and none of it is duplicated here: the panel becomes
+ * a column, the icons grow towards the middle of the screen instead of upwards,
+ * and the label and the running dot move to the inner side. The arithmetic in
+ * Dock.tsx is one-dimensional and never had an opinion about which axis it was.
+ */
+
+.stage[data-edge="left"],
+.stage[data-edge="right"] {
+  align-items: center;
+}
+
+.stage[data-edge="left"] {
+  justify-content: flex-start;
+}
+
+.stage[data-edge="right"] {
+  justify-content: flex-end;
+}
+
+.stage[data-edge="top"] {
+  align-items: flex-start;
+}
+
+[data-edge="left"] .dock,
+[data-edge="right"] .dock {
+  flex-direction: column;
+}
+
+/* The icons overflow towards the desktop, away from the screen edge. */
+[data-edge="left"] .dock,
+[data-edge="left"] .slot {
+  align-items: flex-start;
+}
+
+[data-edge="right"] .dock,
+[data-edge="right"] .slot {
+  align-items: flex-end;
+}
+
+[data-edge="top"] .dock,
+[data-edge="top"] .slot {
+  align-items: flex-start;
+}
+
+/* A column of icons is centred across the dock, not pushed to one end of it. */
+[data-edge="left"] .slot,
+[data-edge="right"] .slot {
+  justify-content: center;
+}
+
+/* The running dot sits beside the icon rather than under it, on the side the
+   desktop is. */
+[data-edge="left"] .dot,
+[data-edge="right"] .dot {
+  bottom: auto;
+  top: 50%;
+  left: auto;
+  transform: translateY(-50%);
+}
+
+[data-edge="left"] .dot {
+  inset-inline-start: -6px;
+  left: -6px;
+}
+
+[data-edge="right"] .dot {
+  right: -6px;
+}
+
+/* The name bubble is centred on the icon across the dock; `Dock.tsx` sets which
+   side it stands off. */
+[data-edge="left"] .label,
+[data-edge="right"] .label {
+  left: auto;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
 /* ---------------- JARVIS ----------------
  *
  * The dock in JARVIS mode: the frosted macOS panel becomes an instrument
@@ -273,8 +354,8 @@ body {
  * none of the layout maths in Dock.tsx knows this exists.
  *
  * The dock window has its own page and so its own `:root`; Rust broadcasts the
- * mode and `lib/jarvis.ts` sets the attribute here exactly as it does in the
- * settings window.
+ * Look and `lib/shell-look.ts` sets the attribute here exactly as it does in
+ * the settings window.
  */
 
 :root[data-theme="jarvis"] .dock {
@@ -347,4 +428,134 @@ body {
   border-color: rgba(111, 227, 255, 0.4);
   box-shadow: 0 0 20px rgba(111, 227, 255, 0.16), 0 16px 44px rgba(0, 0, 0, 0.7);
   font-family: "Cascadia Mono", Consolas, ui-monospace, monospace;
+}
+
+/* ---------------- arriving ----------------
+ *
+ * The dock is hidden until the pointer reaches the bottom of the screen, and
+ * Rust shows the window the moment it does. A window that simply appears reads
+ * as a glitch, so the panel slides the last few pixels up into place.
+ *
+ * On the stage, not the panel: the panel already carries a `translateX` for the
+ * magnification, and two transforms on one element is one of them lost.
+ */
+@keyframes dock-arrive {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.stage[data-arriving] {
+  animation: dock-arrive 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage[data-arriving] {
+    animation: none;
+  }
+}
+
+/* ---------------- Cupertino ----------------
+ *
+ * The dock is already a macOS dock in shape — this only softens it further and
+ * lets the wallpaper through, now that the Look has usually just turned
+ * transparency on.
+ */
+
+:root[data-theme="cupertino"] .dock {
+  border-radius: 22px;
+  background: rgba(58, 58, 60, 0.42);
+  border-color: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-theme="cupertino"] .dock {
+    background: rgba(242, 242, 247, 0.55);
+    border-color: rgba(255, 255, 255, 0.75);
+  }
+}
+
+/* ---------------- Yaru ----------------
+ *
+ * Flat, square and aubergine. The opposite of Cupertino's vibrancy, drawn by
+ * the same component — which is the point: if this needed a second stylesheet,
+ * the dock's dressing would not really be per-Look.
+ */
+
+:root[data-theme="yaru"] .dock {
+  border-radius: 0;
+  background: rgba(45, 10, 34, 0.94);
+  border: 0;
+  border-inline-end: 1px solid rgba(233, 84, 32, 0.35);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+:root[data-theme="yaru"] .stage[data-edge="right"] .dock {
+  border-inline-end: 0;
+  border-inline-start: 1px solid rgba(233, 84, 32, 0.35);
+}
+
+:root[data-theme="yaru"] .stage[data-edge="bottom"] .dock {
+  border-inline-end: 0;
+  border-block-start: 1px solid rgba(233, 84, 32, 0.35);
+}
+
+:root[data-theme="yaru"] .dot--on {
+  background: #e95420;
+  box-shadow: none;
+}
+
+:root[data-theme="yaru"] .label {
+  border-radius: 4px;
+  background: rgba(45, 10, 34, 0.96);
+  border-color: rgba(233, 84, 32, 0.4);
+}
+
+:root[data-theme="yaru"] .menu {
+  border-radius: 4px;
+}
+
+/* ---------------- Zen ----------------
+ *
+ * A row of icons at rest. The panel stops being a slab of frosted glass and
+ * becomes a hairline tray; the running dot loses its glow; and Dock.tsx holds
+ * the magnification still, because a dock that leaps at the cursor is the
+ * opposite of what this Look is for.
+ */
+
+:root[data-theme="zen"] .dock {
+  border-radius: 8px;
+  background: rgba(253, 252, 249, 0.82);
+  border: 1px solid rgba(43, 42, 40, 0.1);
+  box-shadow: none;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+:root[data-theme="zen"] .dot--on {
+  background: rgba(43, 42, 40, 0.55);
+  box-shadow: none;
+}
+
+:root[data-theme="zen"] .label {
+  background: rgba(253, 252, 249, 0.96);
+  border-color: rgba(43, 42, 40, 0.12);
+  color: #2b2a28;
+  border-radius: 4px;
+}
+
+:root[data-theme="zen"] .icon img {
+  filter: none;
 }

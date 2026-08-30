@@ -206,6 +206,32 @@ const wallpapers = [
       { x: 0.5, y: 0.5, r: 0.478, width: 0.002, strength: 0.26, color: [72, 152, 192] },
     ],
   },
+  {
+    // Yaru: an aubergine field with one warm glow low and to the left, where
+    // the dock stands. Nothing is copied from Ubuntu's own wallpapers — this is
+    // a gradient and two glows, in the two colours the Look already uses.
+    out: join(root, "packs", "yaru", "assets", "wallpaper.png"),
+    top: [26, 8, 22],
+    bottom: [44, 0, 30],
+    glows: [
+      { x: 0.22, y: 0.82, r: 0.55, strength: 0.5, color: [180, 62, 26] },
+      { x: 0.68, y: 0.3, r: 0.6, strength: 0.3, color: [96, 34, 88] },
+      { x: 0.5, y: 1.05, r: 0.45, strength: 0.18, color: [120, 40, 30] },
+    ],
+  },
+  {
+    // Zen: warm off-white, one soft rise low in the frame. The quietest entry
+    // here by some distance — no rings, no grid, and a range of about twelve
+    // levels from top to bottom, which is enough to stop it reading as a flat
+    // fill and not enough to be a picture of anything.
+    out: join(root, "packs", "zen", "assets", "wallpaper.png"),
+    top: [244, 241, 234],
+    bottom: [232, 227, 216],
+    glows: [
+      { x: 0.42, y: 0.88, r: 0.7, strength: 0.5, color: [252, 248, 238] },
+      { x: 0.8, y: 0.18, r: 0.5, strength: 0.22, color: [246, 240, 228] },
+    ],
+  },
 ];
 
 for (const spec of wallpapers) {
