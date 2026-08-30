@@ -1,6 +1,7 @@
 import type {
   Category as Cat,
   DockConfig,
+  Edge,
   JournalEntry,
   LookId,
   LookInfo,
@@ -20,6 +21,7 @@ interface Props {
   dock: DockConfig | null;
   onDockChange: (enabled: boolean) => void;
   onDockReveal: (hover: boolean) => void;
+  onDockPlacement: (edge: Edge) => void;
   bar: TopBarConfig | null;
   onBarChange: (enabled: boolean) => void;
   shell: ShellConfig | null;
@@ -40,6 +42,7 @@ export function Home({
   dock,
   onDockChange,
   onDockReveal,
+  onDockPlacement,
   bar,
   onBarChange,
   shell,
@@ -135,17 +138,36 @@ export function Home({
           />
           <span>{t("dock.show")}</span>
         </label>
-        {/* Only once there is a dock to hide. A preference for something that
-            is switched off is a control with nothing behind it. */}
+        {/* Only once there is a dock to arrange. Preferences for something
+            that is switched off are controls with nothing behind them.
+
+            The edge matters more than it looks: a Look that offered a dock down
+            the side put it there, and without this there would be no way back
+            to the bottom short of editing dock.json. */}
         {dock?.enabled && (
-          <label className="dock-toggle">
-            <input
-              type="checkbox"
-              checked={dock.reveal === "hover"}
-              onChange={(e) => onDockReveal(e.target.checked)}
-            />
-            <span>{t("dock.hover")}</span>
-          </label>
+          <>
+            <label className="field field--inline">
+              <span>{t("dock.placement")}</span>
+              <select
+                className="input"
+                value={dock.placement}
+                onChange={(e) => onDockPlacement(e.target.value as Edge)}
+              >
+                <option value="bottom">{t("dock.placement.bottom")}</option>
+                <option value="left">{t("dock.placement.left")}</option>
+                <option value="right">{t("dock.placement.right")}</option>
+              </select>
+            </label>
+
+            <label className="dock-toggle">
+              <input
+                type="checkbox"
+                checked={dock.reveal === "hover"}
+                onChange={(e) => onDockReveal(e.target.checked)}
+              />
+              <span>{t("dock.hover")}</span>
+            </label>
+          </>
         )}
 
         <p className="muted small">{t("dock.note")}</p>

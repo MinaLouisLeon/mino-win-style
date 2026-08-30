@@ -31,9 +31,9 @@ now has three surfaces: a dock, an overlay and a bar.
 A **Shell Look** is the two halves together: a pack, a skin over our own
 windows, and the surfaces it wants. `%LOCALAPPDATA%\mino-win-style\shell.json`
 records which one is worn — one at a time — and switching it off restores the
-Fluent look exactly, because the skin is one attribute and nothing else. The pack is *offered* rather than
-applied, and so are the surfaces: they have their own switches, and a Look never
-takes one without asking.
+Fluent look exactly, because the skin is one attribute and nothing else. The
+pack is *offered* rather than applied, and so are the surfaces: they have their
+own switches, and a Look never takes one without asking.
 
 ## The dock
 
@@ -48,9 +48,22 @@ keeps for suspended Store apps), reads each icon out of its executable with
 `PrivateExtractIconsW`, and calls `SetForegroundWindow` to raise one. All
 documented API, nothing loaded into another process.
 
-Turn it on from the app's Home screen. Settings live in
-`%LOCALAPPDATA%\mino-win-style\dock.json`, which is also where the pinned list
-is kept — there is no drag-to-pin yet.
+It stands up as well as lying down: along the bottom, or down either side. A
+dock on a side **reserves** its strip the way the bar does, so windows maximize
+beside it rather than under it — which is what Yaru wants and what a bottom dock
+deliberately does not do, since the taskbar is usually there already and two
+parties reserving one edge is how a desktop ends up with a band it cannot
+explain. None of the magnification arithmetic changed to make that work: it was
+always one-dimensional, and standing the dock up feeds it the other axis.
+
+It can also wait at its edge until the pointer arrives, which is what Cupertino
+asks for. Finding the pointer there is `GetCursorPos` on a thread of our own,
+eight times a second — deliberately not a mouse hook, which would be a callback
+in every process that moves a mouse.
+
+Turn it on from the app's Home screen, where the edge and the hiding are both
+settings. They live in `%LOCALAPPDATA%\mino-win-style\dock.json`, which is also
+where the pinned list is kept — there is no drag-to-pin yet.
 
 Still to come: pinning from the dock itself, a launcher, per-monitor placement,
 and replacing the 1.2-second poll with `SetWinEventHook`.
@@ -94,9 +107,11 @@ to the process exiting; for the case where all three were missed there is
 Turn it on from the app's Home screen. Settings live in
 `%LOCALAPPDATA%\mino-win-style\topbar.json`.
 
-[Cupertino](#cupertino) is the Look it was built for, and lays it out its own
-way. Still to come: Yaru's, and per-monitor placement — like the dock, it is the
-primary monitor only.
+Two Looks wear it, and lay it out differently from the same component:
+[Cupertino](#cupertino) puts the application's name at the left with its window
+commands behind a chevron, and [Yaru](#yaru) puts Activities at the left and the
+clock in the middle. Still to come: per-monitor placement — like the dock, it is
+the primary monitor only.
 
 ## JARVIS mode
 
@@ -199,6 +214,38 @@ the app says the following, not only this README:
 
 The gap between what a Look promises and what Windows allows is exactly where a
 user's trust in the rest of the app gets spent.
+
+## Yaru
+
+The GNOME arrangement, in Ubuntu's aubergine and orange: a flat black bar across
+the top with Activities at the left and the clock in the middle, and the dock
+standing down the left side keeping its own strip.
+
+It is the cheapest of the Looks and the best test of the previous two. The bar
+is the same component Cupertino uses, laid out the other way round and stripped
+of every blur; the dock is the same dock, stood on its end. If either had needed
+a stylesheet of its own, the per-Look dressing would not have been real.
+
+**Activities opens Task View.** GNOME's overview has no counterpart we can draw,
+and Task View is the nearest thing Windows has; `SendInput` says Win+Tab the way
+a keyboard would, which is documented API and injects nothing. It was that or no
+button at all — an Activities that did nothing would be the same lie as a
+greyed-out File menu.
+
+**Two oranges, on purpose.** The drawn layer uses Ubuntu's `#E95420`, because it
+only ever sits on aubergine we painted. The system accent is `#C7431A`, several
+stops darker, because Windows puts white text *on* the accent in Start and on
+the taskbar and the brighter orange does not carry it. The same split is why the
+JARVIS pack sets `#00A8CC` and the HUD draws `#6fe3ff`.
+
+**No font ships.** Ubuntu's typeface is redistributable under its own licence,
+but a font binary brings a licence obligation and weight for a cosmetic gain.
+Yaru is recognisable by its colour and its layout, not by its `g`.
+
+In Arabic the dock is offered on the *right*. It is the only place in the app
+where a Look's geometry is a language question rather than a styling one, and it
+only ever applies to the edge being offered — a dock someone has already placed
+themselves is never moved.
 
 ## Why it is built this way
 
@@ -338,6 +385,9 @@ refuses to run without `icon.ico`. Regenerate with
   full-screen placement over the taskbar, and whether a transparent
   always-on-top overlay behaves itself in front of real windows are all
   untested outside the browser.
+- **Nothing about Yaru has run either**, and it adds the two things most worth
+  watching: a dock that reserves a strip down the side — so two of our surfaces
+  hold reservations at once, which is new — and `SendInput` opening Task View.
 - **Nothing about Cupertino has run either.** The surface offer, the dock
   waiting at the bottom edge, the pointer poll that brings it back, and whether
   a maximized window really lands between the bar and the dock are all untested

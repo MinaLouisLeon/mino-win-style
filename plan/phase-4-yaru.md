@@ -124,3 +124,34 @@ between Yaru and Cupertino moves the dock and re-dresses the bar with no restart
 and no leftover reserved space, Task View opens from the bar or the button is
 absent, and both languages are checked with the dock on the correct edge for
 each.
+
+## What shipped, where it differs from the above
+
+All of it, and the phase was as cheap as predicted — but "cheap" turned out to
+mean one thing the plan did not see.
+
+- **The appbar module had to learn to hold more than one strip.** Phase 2 kept a
+  single registration for the process, because only the bar reserved. Yaru wears
+  a bar *and* a reserving dock, so a second `register` would have overwritten
+  the first and left a strip held by nothing that knew how to give it back —
+  the exact failure the whole module is careful about. Registrations are now per
+  window, with `unregister(hwnd)` and `unregister_all()`.
+- **A reserved dock's window is bigger than its reservation.** They are two
+  rectangles now. What is reserved is the panel's thickness; the window is wider,
+  because a context menu opens beside the icons and has to land somewhere. If
+  the window were the reservation, every maximized window on the desktop would
+  move a little each time a menu opened. `dock_place` therefore takes the panel
+  thickness as well as the window size.
+- **`Edge` came from `mino-shell`, not a new enum.** The plan proposed a
+  `DockConfig`-local `Edge`; Phase 2 had already put one in `mino-shell` for the
+  appbar, and one type for "which side of the screen" is right.
+- **How a Look wants the dock lives in the registry**, as `DockWish { edge,
+  hover }` on `Look`. It was going to be a table in `App.tsx` keyed by Look id,
+  which is exactly the second copy of the registry Phase 0 removed.
+- **The dock's edge is a setting on Home**, which the plan did not call for.
+  Without it, accepting Yaru's offer would move the dock to the left with no way
+  back short of editing `dock.json` — a Look that can strand a preference is
+  worse than one that asks for nothing.
+- **Still no verification.** `src-tauri` does not compile here and no browser was
+  available, so the standing dock, the second reservation and Task View have
+  unit-tested arithmetic and a typechecker behind them, and nothing else.

@@ -5,9 +5,10 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
 } from "react";
 
-import { dockApi, type DockItem, type DockLayout } from "./api";
+import { dockApi, type DockItem, type DockLayout, type Edge } from "./api";
 import { useIcons } from "./icons";
 import { Menu, type MenuAction } from "./Menu";
 
@@ -34,6 +35,24 @@ const MENU_MARGIN = 8;
 /** At most this many window entries, so a browser with thirty tabs open does
  *  not produce a menu taller than the screen. */
 const MAX_WINDOWS = 8;
+
+/**
+ * Where an icon's name sits: always on the inner side of the dock, so it reads
+ * over the desktop rather than off the edge of the screen.
+ */
+function labelOffset(edge: Edge, size: number): CSSProperties {
+  const away = size + LABEL_GAP;
+  switch (edge) {
+    case "left":
+      return { left: away };
+    case "right":
+      return { right: away };
+    case "top":
+      return { top: away };
+    default:
+      return { bottom: away };
+  }
+}
 
 /**
  * The classic dock magnification: an icon's scale falls off with distance from
@@ -119,7 +138,8 @@ function widestPanel(count: number, iconSize: number): number {
 
 interface MenuState {
   item: DockItem;
-  anchorX: number;
+  /** Where the icon rests along the edge the dock is on. */
+  anchor: number;
 }
 
 export function Dock() {
@@ -201,6 +221,16 @@ export function Dock() {
   }, [refresh, menu, active]);
 
   const iconSize = layout?.icon_size ?? 48;
+  /**
+   * Which edge the dock is on, and so which way everything below runs.
+   *
+   * All the magnification arithmetic is one-dimensional already — it works in
+   * "rest coordinates" along the dock — so standing the dock up is a matter of
+   * feeding it the other cursor axis and swapping which side of a slot grows.
+   * There is no second copy of the maths.
+   */
+  const edge: Edge = layout?.edge ?? "bottom";
+  const vertical = edge === "left" || edge === "right";
 
   // Measured after the menu renders, because the window has to grow to fit it —
   // the menu cannot paint outside its own window.
@@ -226,21 +256,34 @@ export function Dock() {
   useEffect(() => {
     // Room for the panel at its widest *and* for the slide that keeps the
     // hovered icon under the cursor, which can push it a whole spread either
-    // way. Symmetrical, because the window is centred on the screen and the
-    // resting panel is centred in the window.
+    // way. Symmetrical, because the resting panel is centred in the window.
     const spread = widest - rest;
-    // scrollWidth, not offsetWidth: same clamping problem applies to the menu.
-    const menuWidth = menuBox.current?.scrollWidth ?? 0;
-    const width = Math.max(rest + spread * 2, menuWidth + MENU_MARGIN * 2, MIN_WIDTH);
+    // scrollWidth/Height, not offsetWidth/Height: the menu lives inside this
+    // window too, so the same clamping problem applies to measuring it.
+    const menuAcross = menuBox.current?.scrollWidth ?? 0;
 
-    const extra = menuHeight > 0 ? menuHeight + MENU_GAP : 0;
-    // The icons grow up out of the panel, so the window has to be as tall as
-    // the biggest one plus the name that sits above it.
-    const height =
-      PAD + iconSize * (1 + LIFT) + LABEL_GAP + LABEL_HEIGHT + HEADROOM + extra;
+    // Along the edge: as long as the panel can get.
+    const along = Math.max(rest + spread * 2, MIN_WIDTH);
+    // Across it: the biggest an icon gets, plus the name above it. The icons
+    // grow out of the panel, so this is what stops them being clipped.
+    const thickness = PAD + iconSize * (1 + LIFT) + LABEL_GAP + LABEL_HEIGHT + HEADROOM;
 
-    dockApi.place(width, height).catch(() => {});
-  }, [rest, widest, iconSize, menuHeight, active]);
+    if (vertical) {
+      // A menu opens beside a standing dock, so it adds to the thickness of the
+      // window — but never to `thickness` itself, which is what the desktop
+      // gives up when this edge reserves. A strip that grew every time a menu
+      // opened would move every maximized window with it.
+      const extra = menuAcross > 0 ? menuAcross + MENU_GAP : 0;
+      dockApi
+        .place(thickness + extra, Math.max(along, menuHeight + MENU_MARGIN * 2), thickness)
+        .catch(() => {});
+    } else {
+      const extra = menuHeight > 0 ? menuHeight + MENU_GAP : 0;
+      dockApi
+        .place(Math.max(along, menuAcross + MENU_MARGIN * 2), thickness + extra, thickness)
+        .catch(() => {});
+    }
+  }, [rest, widest, iconSize, menuHeight, active, vertical]);
 
   const isPinned = (exe: string) =>
     pinned.some((p) => p.toLowerCase() === exe.toLowerCase());
@@ -320,7 +363,11 @@ export function Dock() {
     return actions;
   };
 
-  const panelHeight = (panel.current?.offsetHeight ?? iconSize + PAD * 2) + MENU_GAP;
+  // How far in from the dock's edge the menu has to start to clear the panel.
+  const panelReach =
+    (vertical
+      ? (panel.current?.offsetWidth ?? iconSize + PAD * 2)
+      : (panel.current?.offsetHeight ?? iconSize + PAD * 2)) + MENU_GAP;
 
   // Where the magnification is centred, in rest coordinates. Nowhere while a
   // menu is open: the icons hold still while you choose from it.
@@ -334,6 +381,7 @@ export function Dock() {
   return (
     <div
       className="stage"
+      data-edge={edge}
       data-arriving={arriving || undefined}
       // Tracked here rather than on the panel: the icons stand well above it
       // once they grow, and the effect should start as the cursor comes down
@@ -341,8 +389,13 @@ export function Dock() {
       onMouseMove={(e) => {
         if (menu) return; // keep the icons still while choosing from a menu
         const box = e.currentTarget.getBoundingClientRect();
-        // Into rest coordinates: the resting panel is centred in the window.
-        setCursor(e.clientX - box.left - (box.width - rest) / 2);
+        // Into rest coordinates, along whichever axis the dock runs: the
+        // resting panel is centred in the window on that axis.
+        setCursor(
+          vertical
+            ? e.clientY - box.top - (box.height - rest) / 2
+            : e.clientX - box.left - (box.width - rest) / 2,
+        );
       }}
       onMouseLeave={() => {
         setCursor(null);
@@ -355,8 +408,9 @@ export function Dock() {
         <Menu
           item={menu.item}
           actions={actionsFor(menu.item)}
-          anchorX={menu.anchorX}
-          bottom={panelHeight}
+          anchor={menu.anchor}
+          offset={panelReach}
+          edge={edge}
           onClose={() => setMenu(null)}
           measureRef={menuBox}
         />
@@ -365,7 +419,11 @@ export function Dock() {
       <div
         className="dock"
         ref={panel}
-        style={{ padding: PAD, gap: GAP, transform: `translateX(${slide}px)` }}
+        style={{
+          padding: PAD,
+          gap: GAP,
+          transform: vertical ? `translateY(${slide}px)` : `translateX(${slide}px)`,
+        }}
       >
         {error && <span className="oops">{error}</span>}
         {!error && items.length === 0 && <span className="oops">no windows yet</span>}
@@ -380,10 +438,15 @@ export function Dock() {
               type="button"
               key={item.exe}
               className={`slot${isOpen ? " slot--open" : ""}`}
-              // The slot is as wide as the icon it holds, so a growing icon
-              // takes its room from the layout and its neighbours step aside
-              // instead of being sat on top of.
-              style={{ width: size, height: iconSize }}
+              // The slot is as big as the icon it holds *along* the dock, so a
+              // growing icon takes its room from the layout and its neighbours
+              // step aside instead of being sat on top of. Across the dock it
+              // stays the resting size; the icon grows out of it.
+              style={
+                vertical
+                  ? { width: iconSize, height: size }
+                  : { width: size, height: iconSize }
+              }
               title={item.name}
               onMouseEnter={() => setHovered(item.exe)}
               onMouseLeave={() => setHovered(null)}
@@ -395,15 +458,16 @@ export function Dock() {
                 // magnification, so by the time the menu paints the icon is
                 // back at its resting place and a live measurement would point
                 // the menu at somewhere the icon no longer is.
-                const anchorX = (window.innerWidth - rest) / 2 + restCentre(index, iconSize);
-                setMenu({ item, anchorX });
+                const window_extent = vertical ? window.innerHeight : window.innerWidth;
+                const anchor = (window_extent - rest) / 2 + restCentre(index, iconSize);
+                setMenu({ item, anchor });
                 setCursor(null);
               }}
             >
               {hovered === item.exe && !menu && (
                 // Sits above the icon at whatever size it currently is, rather
                 // than at a fixed height the magnified icon would grow through.
-                <span className="label" style={{ bottom: size + LABEL_GAP }}>
+                <span className="label" style={labelOffset(edge, size)}>
                   {item.name}
                 </span>
               )}

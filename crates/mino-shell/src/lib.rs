@@ -89,6 +89,56 @@ pub fn bar_rect(monitor: WorkArea, edge: Edge, thickness: i32) -> WorkArea {
     }
 }
 
+/// Where a panel of this size sits along one edge of the work area.
+///
+/// The dock, in other words: centred along the edge it lives on, and flush
+/// against it. A bar spans its edge and a dock does not, which is the whole
+/// difference between this and [`bar_rect`].
+///
+/// Pure, and here rather than in the Tauri module, because a dock placed a few
+/// pixels wrong is off the screen and a dock placed on the wrong axis is a
+/// column of icons across the middle of the desktop.
+pub fn dock_rect(work: WorkArea, edge: Edge, width: i32, height: i32) -> WorkArea {
+    let width = width.clamp(0, work.width.max(0));
+    let height = height.clamp(0, work.height.max(0));
+
+    let centred_x = work.x + (work.width - width) / 2;
+    let centred_y = work.y + (work.height - height) / 2;
+
+    match edge {
+        Edge::Bottom => WorkArea {
+            x: centred_x,
+            y: work.y + work.height - height,
+            width,
+            height,
+        },
+        Edge::Top => WorkArea {
+            x: centred_x,
+            y: work.y,
+            width,
+            height,
+        },
+        Edge::Left => WorkArea {
+            x: work.x,
+            y: centred_y,
+            width,
+            height,
+        },
+        Edge::Right => WorkArea {
+            x: work.x + work.width - width,
+            y: centred_y,
+            width,
+            height,
+        },
+    }
+}
+
+/// Whether a surface on this edge stacks top to bottom rather than left to
+/// right. The one question the dock's layout actually asks about its edge.
+pub fn is_vertical(edge: Edge) -> bool {
+    matches!(edge, Edge::Left | Edge::Right)
+}
+
 /// Whether the pointer has reached the edge a hidden surface lives on.
 ///
 /// `band` is how many pixels count as "at the edge". Two is enough: the pointer
@@ -172,7 +222,7 @@ pub use telemetry::Sampler;
 #[cfg(windows)]
 pub use windows_impl::{
     activate, close, cursor_pos, foreground, icon_rgba, is_maximized, launch, minimize,
-    screen_area, toggle_maximize, windows, work_area,
+    screen_area, task_view, toggle_maximize, windows, work_area,
 };
 
 /// One entry on the dock: an application, whether or not it is running.
@@ -323,6 +373,46 @@ mod tests {
         let area = bar_rect(SCREEN, Edge::Top, 26);
         assert_eq!(logical(area, 0.0), (0.0, 0.0, 1920.0, 26.0));
         assert_eq!(logical(area, f64::NAN), (0.0, 0.0, 1920.0, 26.0));
+    }
+
+    #[test]
+    fn a_dock_is_centred_along_the_edge_it_lives_on() {
+        let bottom = dock_rect(SCREEN, Edge::Bottom, 600, 140);
+        assert_eq!((bottom.x, bottom.y), (660, 940));
+
+        let left = dock_rect(SCREEN, Edge::Left, 88, 620);
+        assert_eq!((left.x, left.y), (0, 230));
+
+        let right = dock_rect(SCREEN, Edge::Right, 88, 620);
+        assert_eq!((right.x, right.y), (1832, 230));
+    }
+
+    #[test]
+    fn a_dock_on_a_second_monitor_is_placed_on_that_monitor() {
+        let work = WorkArea {
+            x: -1920,
+            y: 0,
+            width: 1920,
+            height: 1040,
+        };
+        let left = dock_rect(work, Edge::Left, 88, 600);
+        assert_eq!(left.x, -1920, "flush against that screen, not against zero");
+        assert_eq!(left.y, 220);
+    }
+
+    #[test]
+    fn a_dock_bigger_than_the_screen_is_clamped_to_it() {
+        let huge = dock_rect(SCREEN, Edge::Left, 88, 99_999);
+        assert_eq!(huge.height, 1080);
+        assert_eq!(huge.y, 0);
+    }
+
+    #[test]
+    fn only_the_side_edges_stack_downwards() {
+        assert!(is_vertical(Edge::Left));
+        assert!(is_vertical(Edge::Right));
+        assert!(!is_vertical(Edge::Bottom));
+        assert!(!is_vertical(Edge::Top));
     }
 
     #[test]

@@ -21,6 +21,10 @@ use windows::Win32::System::Threading::{
     GetCurrentProcessId, OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32,
     PROCESS_QUERY_LIMITED_INFORMATION,
 };
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+    SendInput, INPUT, INPUT_KEYBOARD, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, VK_LWIN,
+    VK_TAB,
+};
 use windows::Win32::UI::Shell::ShellExecuteW;
 use windows::Win32::UI::WindowsAndMessaging::{
     DestroyIcon, EnumWindows, GetCursorPos, GetForegroundWindow, GetIconInfo, GetWindow,
@@ -353,6 +357,39 @@ pub fn launch(target: &str) -> bool {
         // ShellExecute returns >32 on success. It is an HINSTANCE for
         // historical reasons and means nothing else.
         result.0 as isize > 32
+    }
+}
+
+/// Opens Task View, by pressing Win+Tab the way a keyboard would.
+///
+/// GNOME's Activities overview has no counterpart we can draw, and Task View is
+/// the closest thing Windows has. `SendInput` is the documented way to say a
+/// key was pressed; nothing is injected into another process and no hook is
+/// installed. The alternative was a button on the bar that looked like
+/// Activities and did nothing, which is the same lie as a greyed-out File menu.
+pub fn task_view() -> bool {
+    let mut input = [INPUT::default(); 4];
+    let keys = [
+        (VK_LWIN, KEYBD_EVENT_FLAGS(0)),
+        (VK_TAB, KEYBD_EVENT_FLAGS(0)),
+        (VK_TAB, KEYEVENTF_KEYUP),
+        (VK_LWIN, KEYEVENTF_KEYUP),
+    ];
+
+    for (slot, (key, flags)) in input.iter_mut().zip(keys) {
+        slot.r#type = INPUT_KEYBOARD;
+        slot.Anonymous.ki = KEYBDINPUT {
+            wVk: key,
+            wScan: 0,
+            dwFlags: flags,
+            time: 0,
+            dwExtraInfo: 0,
+        };
+    }
+
+    unsafe {
+        let sent = SendInput(&input, std::mem::size_of::<INPUT>() as i32);
+        sent as usize == input.len()
     }
 }
 

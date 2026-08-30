@@ -564,6 +564,24 @@ select {
   margin-block-end: 5px;
 }
 
+/* A label and its control on one line, for a setting whose name is shorter
+   than the control it belongs to. */
+.field--inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-block: 10px;
+}
+
+.field--inline span {
+  margin-block-end: 0;
+}
+
+.field--inline .input {
+  width: auto;
+  min-width: 180px;
+}
+
 .input {
   width: 100%;
   font: inherit;
@@ -667,6 +685,67 @@ select {
 
 :root[data-theme="cupertino"] .btn {
   border-radius: 8px;
+}
+
+/* ---------------- Yaru ----------------
+ *
+ * Ubuntu's aubergine and orange. Flat where Cupertino is soft: no vibrancy, no
+ * shadow to speak of, and corners that barely round.
+ *
+ * The typeface is the system sans, not Ubuntu's own. That font is
+ * redistributable under its own licence, but shipping a binary brings a licence
+ * obligation and weight for a cosmetic gain — Yaru is recognisable by its
+ * colour and its layout, not by its `g`.
+ */
+
+:root[data-theme="yaru"] {
+  --bg: #1d1a1b;
+  --layer: #2c2224;
+  --layer-2: #3a2c30;
+  --ink: #ffffff;
+  --ink-2: #d4cccf;
+  --muted: #a2989c;
+  --line: #4a393e;
+  --line-2: #5d4950;
+
+  --warn: #f9c440;
+  --warn-bg: #3e3218;
+  --error: #ff7a5c;
+  --error-bg: #40211a;
+
+  --radius: 4px;
+  --radius-lg: 6px;
+  --shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+:root[data-theme="yaru"] body {
+  background: #1d1a1b;
+}
+
+:root[data-theme="yaru"] .nav {
+  background: #2d0a22;
+  border-inline-end-color: #4a1a38;
+}
+
+:root[data-theme="yaru"] .panel,
+:root[data-theme="yaru"] .card,
+:root[data-theme="yaru"] .look,
+:root[data-theme="yaru"] .dialog {
+  background: var(--layer);
+  border-color: var(--line);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+:root[data-theme="yaru"] .brand__mark {
+  border-radius: 50%;
+  background: #e95420;
+}
+
+/* The one place the drawn orange is used rather than the system accent: a
+   swatch is a sample of the Look, not of the desktop. */
+.look__swatch--yaru {
+  background: linear-gradient(140deg, #e95420 0%, #77216f 55%, #2c001e 100%);
 }
 
 /* ---------------- pending bar ---------------- */

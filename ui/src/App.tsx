@@ -14,6 +14,8 @@ import {
   type Category as Cat,
   type JournalEntry,
   type DockConfig,
+  type DockWish,
+  type Edge,
   type LookId,
   type LookInfo,
   type ShellConfig,
@@ -27,6 +29,23 @@ import {
 } from "./lib/api";
 
 type View = "home" | "looks" | Cat | "history";
+
+/**
+ * Which edge a Look's dock actually goes on, once the reading direction is
+ * taken into account.
+ *
+ * A dock down the left is where Ubuntu puts it, and in Arabic that is the far
+ * side of the screen from where everything else begins. This is the only place
+ * in the app where a Look's *geometry* is a language question rather than a
+ * styling one — and it only ever applies to the edge being offered, never to a
+ * dock someone has already placed themselves.
+ */
+function edgeFor(edge: Edge, lang: string): Edge {
+  if (lang !== "ar") return edge;
+  if (edge === "left") return "right";
+  if (edge === "right") return "left";
+  return edge;
+}
 
 const CATEGORIES: Cat[] = ["appearance", "desktop", "taskbar", "start", "explorer"];
 
@@ -56,6 +75,8 @@ export default function App() {
   const [surfaceAsk, setSurfaceAsk] = useState<{
     wants: Surface[];
     pack: PackSummary | null;
+    /** How this Look wants the dock, if it is the dock being offered. */
+    dock: DockWish | null;
   } | null>(null);
 
   const [pending, setPending] = useState<Record<string, Value>>({});
@@ -194,7 +215,7 @@ export default function App() {
         surface === "dock" ? !dock?.enabled : surface === "top-bar" ? !bar?.enabled : false,
       );
 
-      if (wants.length > 0) setSurfaceAsk({ wants, pack: offered });
+      if (wants.length > 0) setSurfaceAsk({ wants, pack: offered, dock: info?.dock ?? null });
       else if (offered) await reviewPack(offered);
     } catch (err) {
       setMessage(String(err));
@@ -218,11 +239,16 @@ export default function App() {
         for (const surface of ask.wants) {
           if (surface === "dock") {
             await api.dockSetEnabled(true);
-            // Waiting at the bottom edge rather than sitting on screen is part
-            // of what was accepted — the offer says so — and this is the only
-            // place that sets it. Someone who already had a dock keeps theirs
-            // exactly as it was, because they were never asked.
-            setDock(await api.dockSetReveal(true));
+            // Where the dock goes and whether it waits at that edge are part of
+            // what was accepted — the offer names both — and this is the only
+            // place that sets either. Someone who already had a dock keeps
+            // theirs exactly as it was, because they were never asked.
+            if (ask.dock) {
+              await api.dockSetPlacement(edgeFor(ask.dock.edge, lang));
+              setDock(await api.dockSetReveal(ask.dock.hover));
+            } else {
+              setDock(await api.dockConfig());
+            }
           } else if (surface === "top-bar") {
             setBar(await api.topBarSetEnabled(true));
           }
@@ -410,6 +436,13 @@ export default function App() {
                 setMessage(String(err));
               }
             }}
+            onDockPlacement={async (edge) => {
+              try {
+                setDock(await api.dockSetPlacement(edge));
+              } catch (err) {
+                setMessage(String(err));
+              }
+            }}
             bar={bar}
             onBarChange={async (enabled) => {
               try {
@@ -475,7 +508,16 @@ export default function App() {
         <Ask
           title={t("look.surfaces.title")}
           body={`${t("look.surfaces.body")} ${surfaceAsk.wants
-            .map((surface) => t(`look.surface.${surface}`))
+            .map((surface) =>
+              surface === "dock" && surfaceAsk.dock
+                ? t(
+                    `look.surface.dock.${surfaceAsk.dock.hover ? "hover" : "fixed"}.${edgeFor(
+                      surfaceAsk.dock.edge,
+                      lang,
+                    )}`,
+                  )
+                : t(`look.surface.${surface}`),
+            )
             .join(t("common.listSep"))}`}
           confirm={t("look.surfaces.yes")}
           cancel={t("look.surfaces.no")}

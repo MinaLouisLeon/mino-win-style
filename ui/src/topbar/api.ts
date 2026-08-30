@@ -76,6 +76,11 @@ export const barApi = {
   close: (hwnd: number): Promise<boolean> =>
     inTauri ? invoke<boolean>("dock_close", { hwnd }) : Promise.resolve(true),
 
+  /** Task View, for the Activities button. False when Windows refused, which
+   *  is what stops the button pretending it did something. */
+  taskView: (): Promise<boolean> =>
+    inTauri ? invoke<boolean>("top_bar_task_view") : Promise.resolve(true),
+
   openSettings: (): Promise<void> =>
     inTauri ? invoke<void>("top_bar_open_settings") : Promise.resolve(),
 

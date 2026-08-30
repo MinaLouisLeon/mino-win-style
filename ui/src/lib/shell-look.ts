@@ -21,10 +21,19 @@
  * *pages* know how to draw something for. A Look with an overlay needs a
  * component keyed by its id, so this grows by one line as each Look lands.
  */
-export type LookId = "jarvis" | "cupertino";
+export type LookId = "jarvis" | "cupertino" | "yaru";
 
 /** One of our own windows. Mirrors `Surface` in `src-tauri/src/shell_look.rs`. */
 export type Surface = "overlay" | "dock" | "top-bar";
+
+/** Which edge a surface lives on. Mirrors `Edge` in `mino-shell`. */
+export type Edge = "top" | "bottom" | "left" | "right";
+
+/** How a Look wants the dock, if it is offered one and gets it. */
+export interface DockWish {
+  edge: Edge;
+  hover: boolean;
+}
 
 /** A registry entry, straight from Rust. */
 export interface LookInfo {
@@ -32,6 +41,7 @@ export interface LookInfo {
   theme: string;
   surfaces: Surface[];
   pack_id: string | null;
+  dock: DockWish | null;
 }
 
 export interface ShellConfig {

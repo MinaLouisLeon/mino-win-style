@@ -56,6 +56,7 @@ const SHUTDOWN_MS: u64 = 1_400;
 pub enum LookId {
     Jarvis,
     Cupertino,
+    Yaru,
 }
 
 impl LookId {
@@ -65,6 +66,7 @@ impl LookId {
         match self {
             LookId::Jarvis => "jarvis",
             LookId::Cupertino => "cupertino",
+            LookId::Yaru => "yaru",
         }
     }
 
@@ -104,6 +106,18 @@ pub enum Surface {
 /// and the answer is the user's. Nothing here turns them on, and nothing here
 /// turns them off again either: a surface someone accepted stays theirs, on the
 /// switch it has always had.
+/// How a Look wants the dock, if it wants one at all.
+///
+/// Part of the registry rather than of the UI so that adding a Look stays one
+/// entry: the picker reads this and passes it on, and nothing in TypeScript has
+/// to know that Cupertino hides its dock and Yaru stands its up.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub struct DockWish {
+    pub edge: mino_shell::Edge,
+    /// Whether it waits at that edge until the pointer comes for it.
+    pub hover: bool,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Look {
     pub id: LookId,
@@ -111,6 +125,9 @@ pub struct Look {
     pub surfaces: &'static [Surface],
     /// The pack *offered* when the Look is switched on. Never applied here.
     pub pack_id: Option<&'static str>,
+    /// Only read when the dock is offered *and* accepted. A Look never moves a
+    /// dock somebody already had.
+    pub dock: Option<DockWish>,
 }
 
 impl Look {
@@ -125,6 +142,7 @@ pub const LOOKS: &[Look] = &[
         theme: "jarvis",
         surfaces: &[Surface::Overlay],
         pack_id: Some("com.mino.jarvis"),
+        dock: None,
     },
     Look {
         id: LookId::Cupertino,
@@ -135,6 +153,22 @@ pub const LOOKS: &[Look] = &[
         // second near-identical one to keep in step — the picker says so, so
         // nobody reads it as a setting having gone missing.
         pack_id: Some("com.mino.macos"),
+        dock: Some(DockWish {
+            edge: mino_shell::Edge::Bottom,
+            hover: true,
+        }),
+    },
+    Look {
+        id: LookId::Yaru,
+        theme: "yaru",
+        surfaces: &[Surface::TopBar, Surface::Dock],
+        pack_id: Some("com.mino.yaru"),
+        // Ubuntu's dock stands down the left and stays there: windows maximize
+        // beside it rather than under it, which is what makes it reserve.
+        dock: Some(DockWish {
+            edge: mino_shell::Edge::Left,
+            hover: false,
+        }),
     },
 ];
 

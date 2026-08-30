@@ -44,6 +44,9 @@ pub struct DockConfig {
     /// Height of an icon at rest, in logical pixels.
     pub icon_size: u32,
     pub reveal: Reveal,
+    /// Which edge the dock lives on. `Bottom` is what it has always done, and
+    /// what every `dock.json` written before this field gets.
+    pub placement: mino_shell::Edge,
 }
 
 impl Default for DockConfig {
@@ -53,7 +56,23 @@ impl Default for DockConfig {
             pinned: default_pins(),
             icon_size: 48,
             reveal: Reveal::Always,
+            placement: mino_shell::Edge::Bottom,
         }
+    }
+}
+
+impl DockConfig {
+    /// Whether this dock takes a strip of the desktop rather than floating over
+    /// it.
+    ///
+    /// A dock down the side reserves, the way Ubuntu's does: windows maximize
+    /// beside it, not underneath. A dock along the bottom does not, because the
+    /// taskbar is usually there and auto-hidden, and two parties reserving the
+    /// same edge is how a desktop ends up with a band it cannot explain. One
+    /// that hides at the edge reserves nothing either — there is nothing on
+    /// screen to reserve space for.
+    fn reserves(&self) -> bool {
+        self.enabled && self.reveal == Reveal::Always && mino_shell::is_vertical(self.placement)
     }
 }
 
@@ -137,7 +156,9 @@ pub fn start_watch(app: &AppHandle) {
             } else if mino_shell::at_edge(
                 cursor,
                 mino_shell::work_area(),
-                mino_shell::Edge::Bottom,
+                // Whichever edge this dock lives on: a dock down the left is
+                // asked for at the left of the screen, not the bottom.
+                DockConfig::load().placement,
                 EDGE_BAND,
             ) {
                 revealed = true;
@@ -252,7 +273,7 @@ pub fn create(app: &AppHandle) -> Result<(), String> {
 
     trace("dock window created");
     if let Some(window) = app.get_webview_window(WINDOW_LABEL) {
-        let _ = place_window(&window, 600.0, 140.0);
+        let _ = place_window(&window, 600.0, 140.0, 140.0);
     }
 
     Ok(())
@@ -262,16 +283,75 @@ pub fn create(app: &AppHandle) -> Result<(), String> {
 ///
 /// Deliberately does *not* show the window: the page calls this whenever its
 /// layout changes, and a hidden dock re-placing itself must stay hidden.
-fn place_window(window: &tauri::WebviewWindow, width: f64, height: f64) -> Result<(), String> {
-    let area = mino_shell::work_area();
+fn place_window(
+    window: &tauri::WebviewWindow,
+    width: f64,
+    height: f64,
+    thickness: f64,
+) -> Result<(), String> {
+    let work = mino_shell::work_area();
     let scale = window.scale_factor().unwrap_or(1.0);
+    let config = DockConfig::load();
+    let edge = config.placement;
 
-    let logical_work_width = f64::from(area.width) / scale;
-    let x = f64::from(area.x) / scale + (logical_work_width - width) / 2.0;
-    let y = f64::from(area.y + area.height) / scale - height;
+    // The page measures in logical pixels and everything below is physical:
+    // the work area, the pointer, and the rectangle an appbar is granted are
+    // all reported that way.
+    let wanted_w = (width * scale).round() as i32;
+    let wanted_h = (height * scale).round() as i32;
+    // How thick the panel itself is, without the room the window keeps beside
+    // it for menus. This, and not the window, is what gets reserved.
+    let thickness_px = (thickness.max(1.0) * scale).round() as i32;
 
+    // The window handle is only wanted for the reservation, and only on
+    // Windows; a dock that cannot be identified simply floats.
+    let hwnd = window.hwnd().ok().map(|h| h.0 as isize);
+
+    let rect = if config.reserves() {
+        // Two rectangles, not one, and the difference is the point.
+        //
+        // What is *reserved* is a strip as thick as the panel, so windows
+        // maximize beside the dock. What the *window* gets is wider than that,
+        // because a context menu opens beside the icons and has to land
+        // somewhere — the overhang sits over the desktop, exactly as the bottom
+        // dock does, and reserves nothing. Reserving the window instead would
+        // mean the desktop growing and shrinking every time a menu opened.
+        let reserved = hwnd
+            .and_then(|hwnd| mino_shell::appbar::register(hwnd, edge, thickness_px))
+            .unwrap_or_else(|| mino_shell::bar_rect(mino_shell::screen_area(), edge, thickness_px));
+
+        let x = match edge {
+            // Flush against the outer edge of the strip we were granted; the
+            // rest of the window hangs inwards over the desktop.
+            mino_shell::Edge::Right => reserved.x + reserved.width - wanted_w,
+            _ => reserved.x,
+        };
+        let y = match edge {
+            mino_shell::Edge::Bottom => reserved.y + reserved.height - wanted_h,
+            mino_shell::Edge::Top => reserved.y,
+            // Centred along the strip, which is where a dock sits on an edge it
+            // does not fill.
+            _ => reserved.y + (reserved.height - wanted_h) / 2,
+        };
+
+        mino_shell::WorkArea {
+            x,
+            y,
+            width: wanted_w,
+            height: wanted_h,
+        }
+    } else {
+        // Not reserving — and if this dock was reserving a moment ago, that
+        // strip has to go back before the window moves off it.
+        if let Some(hwnd) = hwnd {
+            mino_shell::appbar::unregister(hwnd);
+        }
+        mino_shell::dock_rect(work, edge, wanted_w, wanted_h)
+    };
+
+    let (x, y, w, h) = mino_shell::logical(rect, scale);
     window
-        .set_size(LogicalSize::new(width, height))
+        .set_size(LogicalSize::new(w, h))
         .map_err(|e| e.to_string())?;
     window
         .set_position(LogicalPosition::new(x, y))
@@ -279,12 +359,7 @@ fn place_window(window: &tauri::WebviewWindow, width: f64, height: f64) -> Resul
 
     // Remembered in physical pixels, because that is what the pointer is
     // reported in and the watcher has to compare the two.
-    *PLACED.lock().unwrap_or_else(PoisonError::into_inner) = Some(mino_shell::WorkArea {
-        x: (x * scale).round() as i32,
-        y: (y * scale).round() as i32,
-        width: (width * scale).round() as i32,
-        height: (height * scale).round() as i32,
-    });
+    *PLACED.lock().unwrap_or_else(PoisonError::into_inner) = Some(rect);
     Ok(())
 }
 
@@ -307,6 +382,11 @@ pub fn show(app: &AppHandle) -> Result<(), String> {
 pub fn hide(app: &AppHandle) {
     if let Some(window) = app.get_webview_window(WINDOW_LABEL) {
         trace("hide(): hiding the dock");
+        // Before the window goes: a hidden dock still holding a strip is a band
+        // of desktop nothing can explain.
+        if let Ok(handle) = window.hwnd() {
+            mino_shell::appbar::unregister(handle.0 as isize);
+        }
         let _ = window.hide();
         // Tells the page to stop looking at the desktop while nobody can see it.
         let _ = app.emit_to(WINDOW_LABEL, "dock-active", false);
@@ -324,6 +404,9 @@ pub struct DockLayout {
     pub work_width: i32,
     pub work_height: i32,
     pub icon_size: u32,
+    /// Which edge the dock is on, so the page knows which way to stack and
+    /// which way the magnification runs.
+    pub edge: mino_shell::Edge,
 }
 
 #[tauri::command]
@@ -354,7 +437,26 @@ pub fn dock_set_enabled(app: AppHandle, enabled: bool) -> Result<DockConfig, Str
     Ok(config)
 }
 
-/// Whether the dock waits at the bottom edge or stays on screen.
+/// Which edge the dock lives on.
+///
+/// Changing it re-places the window and, if the new edge reserves and the old
+/// one did not, asks for the strip — `place_window` owns both, so there is one
+/// path through it rather than a second copy here.
+#[tauri::command]
+pub fn dock_set_placement(app: AppHandle, edge: mino_shell::Edge) -> Result<DockConfig, String> {
+    let mut config = DockConfig::load();
+    config.placement = edge;
+    config.save()?;
+
+    let handle = app.clone();
+    let mode = config.clone();
+    app.run_on_main_thread(move || apply_mode(&handle, &mode))
+        .map_err(|e| e.to_string())?;
+
+    Ok(config)
+}
+
+/// Whether the dock waits at its edge or stays on screen.
 #[tauri::command]
 pub fn dock_set_reveal(app: AppHandle, hover: bool) -> Result<DockConfig, String> {
     let mut config = DockConfig::load();
@@ -410,6 +512,7 @@ pub fn dock_layout() -> DockLayout {
         work_width: area.width,
         work_height: area.height,
         icon_size: config.icon_size,
+        edge: config.placement,
     }
 }
 
@@ -491,16 +594,19 @@ fn same_path(a: &str, b: &str) -> bool {
     a.eq_ignore_ascii_case(b)
 }
 
-/// Places the dock centred along the bottom of the primary monitor's work area.
+/// Places the dock along whichever edge it lives on.
 ///
-/// The page knows how wide it needs to be — it has just laid the icons out — so
-/// it tells us, rather than Rust trying to predict a CSS layout.
+/// The page knows how big it needs to be — it has just laid the icons out — so
+/// it tells us, rather than Rust trying to predict a CSS layout. `thickness` is
+/// the panel on its own, without the room the window keeps beside it for a
+/// menu: on an edge that reserves, that is the strip the desktop gives up, and
+/// it must not change every time a menu opens.
 #[tauri::command]
-pub fn dock_place(app: AppHandle, width: f64, height: f64) -> Result<(), String> {
+pub fn dock_place(app: AppHandle, width: f64, height: f64, thickness: f64) -> Result<(), String> {
     let Some(window) = app.get_webview_window(WINDOW_LABEL) else {
         return Ok(());
     };
-    place_window(&window, width, height)
+    place_window(&window, width, height, thickness)
 }
 
 /// Minimal base64. A dependency for twenty lines of table lookup would be a

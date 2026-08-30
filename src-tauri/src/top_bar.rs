@@ -175,8 +175,12 @@ pub fn show(app: &AppHandle) -> Result<(), String> {
 /// desktop a band short with nothing visible to explain it, which is the exact
 /// failure this whole module is careful about.
 pub fn hide(app: &AppHandle) {
-    mino_shell::appbar::unregister();
     if let Some(window) = app.get_webview_window(WINDOW_LABEL) {
+        // This window's strip only. The dock may be holding one of its own, and
+        // taking that away here would be a bar switch that moved the dock.
+        if let Ok(handle) = window.hwnd() {
+            mino_shell::appbar::unregister(handle.0 as isize);
+        }
         let _ = window.hide();
         let _ = app.emit_to(WINDOW_LABEL, "top-bar-active", false);
     }
@@ -239,6 +243,17 @@ pub fn top_bar_foreground() -> Option<mino_shell::AppWindow> {
     mino_shell::foreground()
 }
 
+/// Opens Task View — the Activities button, on the Yaru bar.
+///
+/// GNOME's overview has no counterpart we can draw, and Task View is the
+/// closest thing Windows has. Either the button opens it or the button does not
+/// exist: an Activities that did nothing would be the same lie as a greyed-out
+/// File menu.
+#[tauri::command]
+pub fn top_bar_task_view() -> bool {
+    mino_shell::task_view()
+}
+
 /// Brings the settings window back, from the bar's own menu.
 ///
 /// Everything the bar could offer as a menu — the Look picker, the dock switch,
@@ -261,7 +276,7 @@ pub fn top_bar_open_settings(app: AppHandle) -> Result<(), String> {
 /// is leaving the reservation behind, and belt and braces is cheap.
 #[tauri::command]
 pub fn top_bar_quit(app: AppHandle) {
-    mino_shell::appbar::unregister();
+    mino_shell::appbar::unregister_all();
     app.exit(0);
 }
 

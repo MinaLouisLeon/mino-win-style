@@ -11,6 +11,7 @@ import type {
   Api,
   ApplyReport,
   Category,
+  Edge,
   Reveal,
   JournalEntry,
   Plan,
@@ -141,17 +142,41 @@ const entries: JournalEntry[] = [];
 let mockDockEnabled = false;
 let mockShell: ShellConfig = { ...SHELL_DEFAULTS };
 let mockTopBar = false;
+
+/** One shape for the dock's config, so the three setters cannot drift. */
+const mockDock = () => ({
+  enabled: mockDockEnabled,
+  pinned: [] as string[],
+  icon_size: 48,
+  reveal: mockReveal,
+  placement: mockPlacement,
+});
 let mockReveal: Reveal = "always";
+let mockPlacement: Edge = "bottom";
 
 /** The registry, as Rust would have sent it. Kept in step with `LOOKS` in
  *  `src-tauri/src/shell_look.rs` by hand, like the tweak list above. */
 const mockLooks: LookInfo[] = [
-  { id: "jarvis", theme: "jarvis", surfaces: ["overlay"], pack_id: "com.mino.jarvis" },
+  {
+    id: "jarvis",
+    theme: "jarvis",
+    surfaces: ["overlay"],
+    pack_id: "com.mino.jarvis",
+    dock: null,
+  },
   {
     id: "cupertino",
     theme: "cupertino",
     surfaces: ["top-bar", "dock"],
     pack_id: "com.mino.macos",
+    dock: { edge: "bottom", hover: true },
+  },
+  {
+    id: "yaru",
+    theme: "yaru",
+    surfaces: ["top-bar", "dock"],
+    pack_id: "com.mino.yaru",
+    dock: { edge: "left", hover: false },
   },
 ];
 
@@ -338,15 +363,18 @@ export const mockApi: Api = {
       }),
     ),
 
-  dockConfig: () =>
-    wait({ enabled: mockDockEnabled, pinned: [], icon_size: 48, reveal: mockReveal }),
+  dockConfig: () => wait(mockDock()),
   dockSetEnabled: (enabled) => {
     mockDockEnabled = enabled;
-    return wait({ enabled, pinned: [], icon_size: 48, reveal: mockReveal });
+    return wait(mockDock());
   },
   dockSetReveal: (hover) => {
     mockReveal = hover ? "hover" : "always";
-    return wait({ enabled: mockDockEnabled, pinned: [], icon_size: 48, reveal: mockReveal });
+    return wait(mockDock());
+  },
+  dockSetPlacement: (edge) => {
+    mockPlacement = edge;
+    return wait(mockDock());
   },
 
   // In a browser tab the bar is a page you can open, not a strip that reserves

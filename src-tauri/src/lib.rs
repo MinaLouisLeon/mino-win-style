@@ -45,6 +45,7 @@ pub fn run() {
             dock::dock_config,
             dock::dock_set_enabled,
             dock::dock_set_reveal,
+            dock::dock_set_placement,
             dock::dock_layout,
             dock::dock_items,
             dock::dock_icon,
@@ -65,6 +66,7 @@ pub fn run() {
             top_bar::top_bar_config,
             top_bar::top_bar_set_enabled,
             top_bar::top_bar_foreground,
+            top_bar::top_bar_task_view,
             top_bar::top_bar_open_settings,
             top_bar::top_bar_quit,
         ])
@@ -116,7 +118,7 @@ pub fn run() {
             // own WM_NCDESTROY unregisters too; this catches the exits that do
             // not go through one.
             if matches!(event, tauri::RunEvent::Exit) {
-                mino_shell::appbar::unregister();
+                mino_shell::appbar::unregister_all();
             }
         });
 }

@@ -55,6 +55,9 @@ body {
 
 .bar {
   height: 100%;
+  /* The centre slot is positioned against this, so the GNOME clock can be
+     centred on the screen rather than on whatever room the sides left over. */
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -290,4 +293,58 @@ body {
 
 :root[data-theme="cupertino"] .bar__menu {
   border-radius: 10px;
+}
+
+/* The centre slot, which only the GNOME arrangement uses. Absolutely
+   positioned, so the clock is centred on the *screen* rather than on whatever
+   room the two sides happened to leave. */
+.bar__centre {
+  position: absolute;
+  inset-inline: 0;
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.bar__date {
+  color: var(--bar-dim);
+}
+
+.bar__activities {
+  font-weight: 600;
+}
+
+/* ---------------- Yaru ----------------
+ *
+ * Flat black, square corners, no vibrancy — the visual opposite of Cupertino
+ * drawn by the same component.
+ */
+
+:root[data-theme="yaru"] {
+  --bar-bg: #1d1d1d;
+  --bar-ink: #ffffff;
+  --bar-dim: #b9b3b6;
+  --bar-line: rgba(255, 255, 255, 0.14);
+  --bar-hover: rgba(255, 255, 255, 0.14);
+  --bar-danger: #e95420;
+  --bar-radius: 4px;
+}
+
+:root[data-theme="yaru"] .bar {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-block-end: 0;
+}
+
+:root[data-theme="yaru"] .bar__menu {
+  border-radius: 6px;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: #2d2d2d;
+}
+
+:root[data-theme="yaru"] .bar__activities:hover {
+  background: var(--bar-hover);
 }

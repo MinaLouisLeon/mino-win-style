@@ -8,9 +8,17 @@
  */
 
 import { mockApi } from "./mock";
-import type { LookId, LookInfo, ShellConfig, Telemetry } from "./shell-look";
+import type { Edge, LookId, LookInfo, ShellConfig, Telemetry } from "./shell-look";
 
-export type { LookId, LookInfo, ShellConfig, Surface, Telemetry } from "./shell-look";
+export type {
+  DockWish,
+  Edge,
+  LookId,
+  LookInfo,
+  ShellConfig,
+  Surface,
+  Telemetry,
+} from "./shell-look";
 
 export type Category = "appearance" | "desktop" | "taskbar" | "start" | "explorer";
 export type Tier = "a" | "b" | "c";
@@ -126,6 +134,8 @@ export interface DockConfig {
   pinned: string[];
   icon_size: number;
   reveal: Reveal;
+  /** Which edge it lives on. A dock down a side reserves its strip. */
+  placement: Edge;
 }
 
 /** The bar, likewise. `height` is logical pixels, and it is what gets reserved
@@ -158,6 +168,7 @@ export interface Api {
   dockConfig(): Promise<DockConfig>;
   dockSetEnabled(enabled: boolean): Promise<DockConfig>;
   dockSetReveal(hover: boolean): Promise<DockConfig>;
+  dockSetPlacement(edge: Edge): Promise<DockConfig>;
   topBarConfig(): Promise<TopBarConfig>;
   topBarSetEnabled(enabled: boolean): Promise<TopBarConfig>;
   shellConfig(): Promise<ShellConfig>;
@@ -204,6 +215,7 @@ function tauriApi(): Api {
     dockConfig: () => invoke<DockConfig>("dock_config"),
     dockSetEnabled: (enabled) => invoke<DockConfig>("dock_set_enabled", { enabled }),
     dockSetReveal: (hover) => invoke<DockConfig>("dock_set_reveal", { hover }),
+    dockSetPlacement: (edge) => invoke<DockConfig>("dock_set_placement", { edge }),
     topBarConfig: () => invoke<TopBarConfig>("top_bar_config"),
     topBarSetEnabled: (enabled) => invoke<TopBarConfig>("top_bar_set_enabled", { enabled }),
     shellConfig: () => invoke<ShellConfig>("shell_config"),

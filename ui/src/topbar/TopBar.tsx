@@ -142,6 +142,10 @@ export function TopBar() {
   /** Cupertino tucks the window commands away; every other Look spells them
    *  out, which is what a bar with room for them should do. */
   const tucked = look === "cupertino";
+  /** GNOME puts the clock in the middle and an Activities button at the far
+   *  left. Same component, opposite arrangement — which is the test that the
+   *  bar's layout really is per-Look. */
+  const gnome = look === "yaru";
 
   const commands = held && [
     { key: "min", label: t("bar.minimize"), glyph: "\u2212", run: barApi.minimize },
@@ -157,7 +161,17 @@ export function TopBar() {
   return (
     <div className="bar" lang={lang}>
       <div className="bar__side">
-        <span className="bar__mark" aria-hidden="true" />
+        {gnome ? (
+          <button
+            type="button"
+            className="bar__btn bar__activities"
+            onClick={() => void barApi.taskView().catch((err) => trace(`task view: ${err}`))}
+          >
+            {t("bar.activities")}
+          </button>
+        ) : (
+          <span className="bar__mark" aria-hidden="true" />
+        )}
         <strong className="bar__app">{held ? nameOf(held.exe) : t("bar.desktop")}</strong>
 
         {commands && !tucked && (
@@ -218,6 +232,13 @@ export function TopBar() {
         )}
       </div>
 
+      {gnome && (
+        <div className="bar__centre" dir="ltr">
+          <span className="bar__clock">{clockTime(now)}</span>
+          <span className="bar__date">{dateLine(now, lang)}</span>
+        </div>
+      )}
+
       <div className="bar__side bar__side--end">
         {telemetry && (
           <span className="bar__net" dir="ltr" title={t("hud.network")}>
@@ -232,9 +253,11 @@ export function TopBar() {
           </span>
         )}
 
-        <span className="bar__clock" dir="ltr">
-          {clockTime(now)}
-        </span>
+        {!gnome && (
+          <span className="bar__clock" dir="ltr">
+            {clockTime(now)}
+          </span>
+        )}
 
         <span className="bar__menu-wrap">
           <button
@@ -286,6 +309,20 @@ export function TopBar() {
 
 /** `C:\Windows\notepad.exe` -> `Notepad`. Mirrors `display_name` in
  *  `mino-shell`, which is what the dock shows for the same program. */
+/** `WED 30 AUG`, in the display language. `Intl` already knows both, and knows
+ *  that Arabic wants a different order — the same call the overlay makes. */
+function dateLine(now: Date, lang: string): string {
+  try {
+    return new Intl.DateTimeFormat(lang === "ar" ? "ar-EG" : "en-GB", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    }).format(now);
+  } catch {
+    return now.toDateString();
+  }
+}
+
 function nameOf(exe: string): string {
   const stem = exe.split(/[\\/]/).pop() ?? exe;
   const base = stem.replace(/\.exe$/i, "");

@@ -23,6 +23,8 @@ windows = { workspace = true, features = [
     "Win32_System_Power",
     "Win32_System_SystemInformation",
     "Win32_System_Threading",
+    # Task View, opened from the Yaru bar by saying Win+Tab through SendInput.
+    "Win32_UI_Input_KeyboardAndMouse",
     "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",
 ] }
